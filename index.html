@@ -1,0 +1,2354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Colour Chemistry Lab in My Telang Garden</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Three.js for 3D Molecular AR Rendering -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #f8fafc;
+            overflow-x: hidden;
+        }
+        
+        /* Ambient Garden Elements - Placed safely behind text */
+        #garden-ambient-container {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+            background: linear-gradient(rgba(248, 250, 252, 0.45), rgba(248, 250, 252, 0.55)),
+                url('https://images.unsplash.com/photo-1620917670397-de7acab32018?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80') center / cover no-repeat;
+        }
+
+        .ambient-flower {
+            display: block;
+            position: relative;
+            width: clamp(58px, 6vw, 92px);
+            aspect-ratio: 1;
+            filter: drop-shadow(0 5px 9px rgba(30, 20, 70, 0.45));
+            animation: flower-drift 7s ease-in-out infinite;
+        }
+
+        .ambient-flower svg {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .ambient-flower::before {
+            content: none;
+        }
+
+        .petal {
+            display: none;
+        }
+
+        @keyframes flower-drift {
+            0%, 100% { transform: rotate(var(--flower-rotation)) translateY(0); }
+            50% { transform: rotate(calc(var(--flower-rotation) + 8deg)) translateY(-12px); }
+        }
+
+        @media (max-width: 768px) {
+            .ambient-flower { width: clamp(38px, 10vw, 58px); }
+        }
+
+        /* Beaker and Pouring Styles */
+        .lab-bay {
+            position: relative;
+            height: 320px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: center;
+        }
+
+        .pour-stream {
+            position: absolute;
+            top: 20px;
+            width: 12px;
+            height: 0;
+            background-color: #3b82f6;
+            border-bottom-left-radius: 6px;
+            border-bottom-right-radius: 6px;
+            opacity: 0;
+            z-index: 5;
+            transition: background-color 0.3s ease;
+        }
+
+        @keyframes pourDown {
+            0% { height: 0; opacity: 1; }
+            45% { height: 210px; opacity: 1; }
+            85% { height: 210px; opacity: 1; }
+            100% { height: 210px; opacity: 0; }
+        }
+
+        .pour-active {
+            animation: pourDown 1.5s ease-in-out forwards;
+        }
+
+        .beaker {
+            position: relative;
+            width: 150px;
+            height: 200px;
+            border: 4px solid #cbd5e1;
+            border-top: none;
+            border-bottom-left-radius: 24px;
+            border-bottom-right-radius: 24px;
+            overflow: hidden;
+            background-color: rgba(255, 255, 255, 0.45);
+            box-shadow: inset 0 -10px 20px rgba(0,0,0,0.02), 0 10px 15px -3px rgba(0,0,0,0.05);
+            z-index: 10;
+        }
+
+        .beaker::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -10px;
+            right: -10px;
+            height: 6px;
+            background-color: #cbd5e1;
+            border-radius: 3px;
+        }
+
+        .beaker-markings {
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            width: 20px;
+            border-right: 2px dashed rgba(203, 213, 225, 0.7);
+            z-index: 12;
+        }
+
+        .mark {
+            width: 10px;
+            border-bottom: 2px solid #cbd5e1;
+            margin-top: 35px;
+        }
+
+        .liquid {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 0%; 
+            background-color: #3b82f6; 
+            transition: height 1s cubic-bezier(0.4, 0, 0.2, 1), background-color 1.2s ease;
+            border-bottom-left-radius: 18px;
+            border-bottom-right-radius: 18px;
+            z-index: 8;
+        }
+
+        .ph-slider {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 15px;
+            border-radius: 10px;
+            background: linear-gradient(to right, 
+                #db2777 0%,    
+                #9333ea 15%,   
+                #7c3aed 30%,   
+                #3b82f6 50%,   
+                #10b981 70%,   
+                #eab308 85%,   
+                #facc15 100%   
+            );
+            outline: none;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.15);
+        }
+
+        .ph-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #ffffff;
+            border: 3px solid #1e293b;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            transition: transform 0.1s ease;
+        }
+
+        .ph-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+        }
+
+        .flip-card {
+            background-color: transparent;
+            perspective: 1000px;
+            height: 380px;
+            cursor: pointer;
+        }
+
+        .flip-card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-style: preserve-3d;
+        }
+
+        .flip-card.flipped .flip-card-inner {
+            transform: rotateY(180deg);
+        }
+
+        .flip-card-front, .flip-card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+            border-radius: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            justify-between;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        .flip-card-back {
+            transform: rotateY(180deg);
+        }
+
+        .page-section {
+            display: none;
+            animation: fadeIn 0.4s ease-in-out forwards;
+            position: relative;
+            z-index: 10;
+        }
+        .page-section.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .text-gradient {
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-image: linear-gradient(to right, #4f46e5, #9333ea);
+        }
+
+        .nav-controls {
+            position: fixed;
+            bottom: 16px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 100;
+        }
+
+        .pop-in {
+            animation: cartoonPop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        @keyframes cartoonPop {
+            0% { transform: scale(0); opacity: 0; }
+            70% { transform: scale(1.15); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .bubble-emitter {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            bottom: 0;
+            left: 0;
+            z-index: 9;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .bubble {
+            position: absolute;
+            background-color: rgba(255, 255, 255, 0.35);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            bottom: -10px;
+            animation: riseBubble 2.5s infinite linear;
+        }
+
+        @keyframes riseBubble {
+            0% { transform: translateY(0) scale(0.6); opacity: 0; }
+            15% { opacity: 0.7; }
+            85% { opacity: 0.8; }
+            100% { transform: translateY(-200px) scale(1.2); opacity: 0; }
+        }
+
+        .liquid-pour-mocktail {
+            animation: fillMocktail 1.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+        @keyframes fillMocktail {
+            0% { height: 0%; }
+            100% { height: var(--mocktail-fill-height, 45%); }
+        }
+
+        .plate-depth {
+            box-shadow: 0 15px 0px 0px rgba(0,0,0,0.07), inset 0 8px 16px rgba(255,255,255,0.6);
+        }
+
+        /* AR Mode HUD Animations */
+        @keyframes scanBeam {
+            0% { top: 5%; opacity: 0.2; }
+            50% { top: 90%; opacity: 0.9; }
+            100% { top: 5%; opacity: 0.2; }
+        }
+
+        .scan-beam-line {
+            position: absolute;
+            left: 5%;
+            right: 5%;
+            height: 4px;
+            background: linear-gradient(90deg, transparent, #38bdf8, #818cf8, #38bdf8, transparent);
+            box-shadow: 0 0 15px #38bdf8, 0 0 25px #818cf8;
+            animation: scanBeam 2.5s infinite ease-in-out;
+            pointer-events: none;
+        }
+
+        .reticle-corner {
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            border-color: #38bdf8;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="text-slate-800 min-h-screen relative pb-64 bg-slate-50">
+
+    <!-- Ambient Garden Container: Real Botanical Bunga Telang, Petals, and Butterflies -->
+    <div id="garden-ambient-container"></div>
+
+    <!-- MAIN PAGE -->
+    <section id="main-page" class="page-section active max-w-6xl mx-auto px-4 py-16 text-center relative z-10">
+        <div class="mb-12">
+            <h1 class="text-4xl md:text-6xl font-bold text-gradient mb-6 leading-tight">
+                COLOUR CHEMISTRY LAB<br>IN MY TELANG GARDEN
+            </h1>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">
+                Explore the botanical chemistry of the Butterfly Pea Flower. Witness color-changing reactions, explore our UN SDG commitments, and test your knowledge!
+            </p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mt-12">
+            <!-- Box 1: Experiment -->
+            <button onclick="navigateTo('experiment-page')" class="group p-6 bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all border-t-4 border-blue-500 flex flex-col items-center justify-between min-h-[220px]">
+                <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4 text-3xl group-hover:scale-110 transition-transform">🧪</div>
+                <div>
+                    <h2 class="text-xl font-bold text-slate-800">Experiment</h2>
+                    <p class="text-xs text-slate-500 mt-2">Witness pH indicator reactions</p>
+                </div>
+            </button>
+            
+            <!-- Box 3: Information -->
+            <button onclick="navigateTo('info-page')" class="group p-6 bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all border-t-4 border-purple-500 flex flex-col items-center justify-between min-h-[220px]">
+                <div class="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mb-4 text-3xl group-hover:scale-110 transition-transform">📖</div>
+                <div>
+                    <h2 class="text-xl font-bold text-slate-800">Information</h2>
+                    <p class="text-xs text-slate-500 mt-2">Flippable botanical journal files</p>
+                </div>
+            </button>
+
+            <!-- Box 4: Magic Cafe -->
+            <button onclick="navigateTo('cafe-page')" class="group p-6 bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all border-t-4 border-amber-500 flex flex-col items-center justify-between min-h-[220px]">
+                <div class="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mb-4 text-3xl group-hover:scale-110 transition-transform">🍹</div>
+                <div>
+                    <h2 class="text-xl font-bold text-slate-800">Magic Cafe</h2>
+                    <p class="text-xs text-slate-500 mt-2">Interactive food & drink prep game</p>
+                </div>
+            </button>
+
+            <!-- Box 5: UN SDGs -->
+            <button onclick="navigateTo('sdg-page')" class="group p-6 bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all border-t-4 border-rose-500 flex flex-col items-center justify-between min-h-[220px]">
+                <div class="w-16 h-16 bg-rose-100 rounded-full flex items-center justify-center mb-4 text-3xl group-hover:scale-110 transition-transform">🌍</div>
+                <div>
+                    <h2 class="text-xl font-bold text-slate-800">UN SDGs</h2>
+                    <p class="text-xs text-slate-500 mt-2">Sustainable Development Goals alignment</p>
+                </div>
+            </button>
+
+            <!-- Box 6: Quiz -->
+            <button onclick="navigateTo('quiz-page')" class="group p-6 bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all border-t-4 border-green-500 flex flex-col items-center justify-between min-h-[220px]">
+                <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4 text-3xl group-hover:scale-110 transition-transform">🧠</div>
+                <div>
+                    <h2 class="text-xl font-bold text-slate-800">Quiz</h2>
+                    <p class="text-xs text-slate-500 mt-2">Prove your botanical expertise</p>
+                </div>
+            </button>
+        </div>
+
+        <div class="h-32"></div>
+    </section>
+
+    <!-- REAL-TIME AR SCANNER PAGE -->
+    <section id="ar-page-removed" class="page-section max-w-5xl mx-auto px-4 py-10 relative z-10">
+        <div class="text-center mb-8">
+            <div class="inline-flex items-center gap-2 px-3 py-1 bg-cyan-100 text-cyan-800 font-bold text-xs rounded-full mb-2">
+                <span>✨ Augmented Reality Experience</span>
+            </div>
+            <h1 class="text-4xl font-bold text-gradient mb-3">Real-Time Flower Scanner & 3D Molecular AR</h1>
+            <p class="text-slate-600 max-w-2xl mx-auto text-sm md:text-base">
+                Point your phone camera at a real Bunga Telang flower (or click <strong>"Simulate Scan"</strong>) to detect the bloom and render live interactive 3D <strong>Anthocyanin / Delphinidin</strong> molecular structures right in front of you!
+            </p>
+        </div>
+
+        <div class="bg-slate-900 rounded-3xl shadow-2xl p-4 md:p-6 text-white border border-slate-800 relative overflow-hidden">
+            
+            <!-- AR Viewport Wrapper -->
+            <div id="ar-viewport" class="relative w-full h-[420px] md:h-[500px] rounded-2xl overflow-hidden bg-black flex items-center justify-center border border-slate-700/60 shadow-inner">
+                
+                <!-- Live Camera Feed Video Element -->
+                <video id="ar-camera-video" autoplay playsinline muted class="absolute inset-0 w-full h-full object-cover hidden"></video>
+
+                <!-- Simulated Camera Background (Used when camera is off or simulated) -->
+                <div id="ar-simulated-bg" class="absolute inset-0 bg-cover bg-center transition-all duration-700" style="background-image: url('https://images.unsplash.com/photo-1620917670397-de7acab32018?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80');">
+                    <div class="absolute inset-0 bg-slate-950/40 backdrop-blur-[2px]"></div>
+                </div>
+
+                <!-- 3D Three.js AR Canvas Overlay -->
+                <canvas id="ar-three-canvas" class="absolute inset-0 w-full h-full z-20 cursor-grab active:cursor-grabbing"></canvas>
+
+                <!-- AR Target Reticle Overlay -->
+                <div id="ar-scanner-hud" class="absolute inset-0 z-30 pointer-events-none flex flex-col items-center justify-between p-6">
+                    
+                    <!-- HUD Top Bar -->
+                    <div class="w-full flex justify-between items-center bg-slate-900/80 backdrop-blur-md px-4 py-2 rounded-xl border border-slate-700/50 text-xs font-mono">
+                        <div class="flex items-center gap-2">
+                            <span id="ar-status-dot" class="w-2.5 h-2.5 rounded-full bg-yellow-400 animate-pulse"></span>
+                            <span id="ar-status-text" class="text-slate-300 font-semibold">CAMERA READY - TAP START</span>
+                        </div>
+                        <div id="ar-match-badge" class="hidden bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 px-2 py-0.5 rounded font-bold">
+                            MATCH: 98.6% (Clitoria ternatea)
+                        </div>
+                    </div>
+
+                    <!-- Scanning Reticle Box -->
+                    <div id="reticle-box" class="relative w-64 h-64 md:w-80 md:h-80 rounded-2xl transition-all duration-500 border border-cyan-500/30">
+                        <div class="reticle-corner top-0 left-0 border-t-4 border-l-4 rounded-tl-xl"></div>
+                        <div class="reticle-corner top-0 right-0 border-t-4 border-r-4 rounded-tr-xl"></div>
+                        <div class="reticle-corner bottom-0 left-0 border-b-4 border-l-4 rounded-bl-xl"></div>
+                        <div class="reticle-corner bottom-0 right-0 border-b-4 border-r-4 rounded-br-xl"></div>
+                        <div id="scan-beam" class="scan-beam-line hidden"></div>
+                        
+                        <!-- Center Target Crosshair -->
+                        <div class="absolute inset-0 flex items-center justify-center opacity-30">
+                            <div class="w-8 h-0.5 bg-cyan-400"></div>
+                            <div class="h-8 w-0.5 bg-cyan-400 absolute"></div>
+                        </div>
+                    </div>
+
+                    <!-- HUD Bottom Info Callout -->
+                    <div id="ar-prompt-banner" class="bg-slate-900/90 backdrop-blur-md border border-cyan-500/40 px-4 py-2.5 rounded-2xl text-center text-xs text-cyan-200 max-w-md shadow-xl">
+                        💡 Align flower inside target box or click <strong>"Simulate Scan"</strong> to trigger 3D molecular popup.
+                    </div>
+                </div>
+
+                <!-- Camera Permission Error Banner -->
+                <div id="ar-camera-error" class="hidden absolute inset-x-4 top-16 z-40 bg-rose-900/90 border border-rose-500/50 text-white p-3 rounded-xl text-xs text-center">
+                    ⚠️ Camera access disabled or unavailable. Falling back to high-definition simulated AR camera mode!
+                </div>
+            </div>
+
+            <!-- AR Interactive Control Toolbar -->
+            <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                
+                <!-- Toolbar Column 1: Camera Controls -->
+                <div class="bg-slate-800/80 p-4 rounded-2xl border border-slate-700/60 flex flex-col justify-between gap-3">
+                    <span class="text-xs font-bold uppercase tracking-wider text-cyan-400">1. Scanner Feed</span>
+                    <div class="flex gap-2">
+                        <button id="btn-start-ar" onclick="startARCamera()" class="flex-1 py-2.5 px-3 bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs rounded-xl transition-all shadow flex items-center justify-center gap-1.5">
+                            <span>📷</span>
+                            <span id="label-camera-btn">Start Camera</span>
+                        </button>
+                        <button onclick="triggerARScanSimulation()" class="flex-1 py-2.5 px-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl transition-all shadow flex items-center justify-center gap-1.5">
+                            <span>⚡</span>
+                            <span>Simulate Scan</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Toolbar Column 2: pH Molecular Reaction Selector -->
+                <div class="bg-slate-800/80 p-4 rounded-2xl border border-slate-700/60 flex flex-col justify-between gap-3">
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs font-bold uppercase tracking-wider text-purple-400">2. pH Chemical Shift</span>
+                        <span id="ar-ph-label" class="text-[11px] font-mono text-blue-300 bg-blue-900/60 px-2 py-0.5 rounded border border-blue-500/30">pH 7.0 (Blue Anthocyanin)</span>
+                    </div>
+                    <div class="grid grid-cols-3 gap-1.5">
+                        <button onclick="setARMoleculePH(2)" class="py-2 px-2 bg-pink-900/60 hover:bg-pink-800 text-pink-200 border border-pink-500/40 font-bold text-[11px] rounded-lg text-center transition-all">
+                            pH 2 (Acid)
+                        </button>
+                        <button onclick="setARMoleculePH(7)" class="py-2 px-2 bg-blue-900/60 hover:bg-blue-800 text-blue-200 border border-blue-500/40 font-bold text-[11px] rounded-lg text-center transition-all">
+                            pH 7 (Neutral)
+                        </button>
+                        <button onclick="setARMoleculePH(11)" class="py-2 px-2 bg-emerald-900/60 hover:bg-emerald-800 text-emerald-200 border border-emerald-500/40 font-bold text-[11px] rounded-lg text-center transition-all">
+                            pH 11 (Base)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Toolbar Column 3: 3D Model Display Options -->
+                <div class="bg-slate-800/80 p-4 rounded-2xl border border-slate-700/60 flex flex-col justify-between gap-3">
+                    <span class="text-xs font-bold uppercase tracking-wider text-amber-400">3. 3D AR Controls</span>
+                    <div class="flex gap-2">
+                        <button onclick="toggleARMoleculeRotation()" class="flex-1 py-2.5 px-3 bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold text-xs rounded-xl transition-all border border-slate-600 flex items-center justify-center gap-1">
+                            <span>🔄</span>
+                            <span id="label-rot-btn">Auto-Rotate</span>
+                        </button>
+                        <button onclick="resetARCameraView()" class="flex-1 py-2.5 px-3 bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold text-xs rounded-xl transition-all border border-slate-600 flex items-center justify-center gap-1">
+                            <span>🎯</span>
+                            <span>Reset 3D View</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Molecule Chemical Profile HUD Panel -->
+            <div id="ar-molecule-info" class="mt-6 bg-slate-950/70 p-5 rounded-2xl border border-cyan-500/30 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div class="space-y-1">
+                    <div class="flex items-center gap-2">
+                        <h4 id="mol-title" class="text-lg font-bold text-cyan-300">Delphinidin 3,5-diglucoside</h4>
+                        <span class="text-[10px] font-mono bg-cyan-950 text-cyan-400 border border-cyan-800 px-2 py-0.5 rounded-full font-bold">Primary Anthocyanin</span>
+                    </div>
+                    <p id="mol-desc" class="text-xs text-slate-300 leading-relaxed max-w-2xl">
+                        The primary natural blue polyphenol compound in <em>Clitoria ternatea</em> petals. In neutral water ($pH \approx 7$), it forms a stable blue flavylium cation network. Adding acid ($H^+$) alters its conjugated double-bond system to reflect vibrant purple/pink light.
+                    </p>
+                </div>
+                <div class="shrink-0 bg-slate-900 px-4 py-3 rounded-xl border border-slate-800 font-mono text-xs space-y-1 w-full md:w-auto">
+                    <p class="text-slate-400">Formula: <span id="mol-formula" class="text-cyan-400 font-bold">$C_{27}H_{31}O_{16}^+$</span></p>
+                    <p class="text-slate-400">Molar Mass: <span class="text-slate-200 font-bold">607.52 g/mol</span></p>
+                    <p class="text-slate-400">Color Spectrum: <span id="mol-spectrum" class="text-blue-400 font-bold">580–620 nm (Royal Blue)</span></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stacked Navigation Controls for AR Page -->
+        <div class="nav-controls">
+            <!-- Home (Top) -->
+            <button onclick="navigateTo('main-page')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-5 rounded-full shadow-lg transition-transform hover:scale-105 flex items-center justify-center gap-2 text-sm">
+                🏠 Home
+            </button>
+            <!-- Next (Middle) -->
+            <button onclick="navigateTo('info-page')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-5 rounded-full shadow-lg transition-transform hover:scale-105 flex items-center justify-center gap-2 text-sm">
+                Next <span class="text-xl">→</span>
+            </button>
+            <!-- Back (Bottom) -->
+            <button onclick="navigateTo('experiment-page')" class="bg-slate-600 hover:bg-slate-700 text-white font-bold py-2 px-5 rounded-full shadow-lg transition-transform hover:scale-105 flex items-center justify-center gap-2 text-sm">
+                <span class="text-xl">←</span> Back
+            </button>
+        </div>
+
+        <div class="h-32"></div>
+    </section>
+
+    <!-- EXPERIMENT PAGE -->
+    <section id="experiment-page" class="page-section max-w-6xl mx-auto px-4 py-10 relative z-10">
+        <div class="text-center mb-10">
+            <h1 class="text-4xl font-bold text-gradient mb-4">Color Change Experiment</h1>
+            <p class="text-slate-600">Interact with either the scientific pH slider or click chemical reagents to trigger reactions.</p>
+        </div>
+
+        <div class="flex flex-col md:flex-row gap-12 items-center justify-center bg-white p-8 rounded-3xl shadow-lg">
+            <!-- Controls side -->
+            <div class="flex flex-col gap-6 w-full md:w-1/2">
+                <div>
+                    <h3 class="text-xl font-semibold mb-2 text-slate-800">Pour Reagents:</h3>
+                    <p class="text-sm text-slate-500 mb-3">Clicking a button starts a pouring stream animation and changes the beaker chemistry.</p>
+                </div>
+                
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <button onclick="pourLiquid('purple', '#facc15')" class="py-3 px-4 bg-purple-100 hover:bg-purple-200 text-purple-800 font-bold rounded-xl shadow transition-colors flex flex-col items-center text-center">
+                        <span class="text-xl mb-1">🍋</span>
+                        <span class="text-sm">Lemon Juice</span>
+                        <span class="text-[10px] font-normal opacity-70">Acidic (Stream: Yellow)</span>
+                    </button>
+                    
+                    <button onclick="pourLiquid('green', '#e2e8f0')" class="py-3 px-4 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold rounded-xl shadow transition-colors flex flex-col items-center text-center">
+                        <span class="text-xl mb-1">🧼</span>
+                        <span class="text-sm">Soap Water</span>
+                        <span class="text-[10px] font-normal opacity-70">Base (Stream: Clear)</span>
+                    </button>
+                    
+                    <button onclick="pourLiquid('blue', '#3b82f6')" class="py-3 px-4 bg-blue-50 hover:bg-blue-100 text-blue-800 font-bold rounded-xl shadow transition-colors flex flex-col items-center text-center">
+                        <span class="text-xl mb-1">💧</span>
+                        <span class="text-sm">Plain Water</span>
+                        <span class="text-[10px] font-normal opacity-70">Neutral (Stream: Blue)</span>
+                    </button>
+                </div>
+
+                <!-- SCIENTIFIC PH GRADIENT SCALE -->
+                <div class="mt-4 p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-sm font-bold text-slate-700">Scientific pH Scale Spectrum:</span>
+                        <span id="ph-badge" class="px-3 py-1 bg-blue-600 text-white font-mono text-xs font-bold rounded-full">pH 7.0 (Neutral)</span>
+                    </div>
+                    <input type="range" id="ph-range-input" min="1" max="14" step="0.1" value="7" class="ph-slider" oninput="handleSliderChange(this.value)">
+                    <div class="flex justify-between text-[10px] font-bold text-slate-400 mt-2 px-1">
+                        <span class="text-red-500">pH 1 (ACIDIC)</span>
+                        <span class="text-blue-500">pH 7 (NEUTRAL)</span>
+                        <span class="text-yellow-600">pH 14 (ALKALINE)</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Experiment visual -->
+            <div class="w-full md:w-1/2 flex justify-center items-end py-8 relative bg-slate-50/50 rounded-2xl">
+                <div class="lab-bay">
+                    <div id="pour-stream" class="pour-stream"></div>
+                    
+                    <div class="beaker">
+                        <div class="beaker-markings">
+                            <div class="mark"></div>
+                            <div class="mark"></div>
+                            <div class="mark"></div>
+                            <div class="mark"></div>
+                        </div>
+                        <div id="beaker-liquid" class="liquid">
+                            <div id="bubble-emitter" class="bubble-emitter"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-12 text-center max-w-3xl mx-auto bg-indigo-50 p-6 rounded-2xl border border-indigo-100">
+            <p class="text-lg text-indigo-900 leading-relaxed font-medium">
+                "Witness the scientific marvel of anthocyanins in the butterfly pea flower: they act as a natural pH indicator that reacts with the surrounding environment."
+            </p>
+        </div>
+
+        <div class="nav-controls">
+            <button onclick="navigateTo('main-page')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-5 rounded-full shadow-lg transition-transform hover:scale-105 flex items-center justify-center gap-2 text-sm">
+                🏠 Home
+            </button>
+            <button onclick="navigateTo('info-page')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-5 rounded-full shadow-lg transition-transform hover:scale-105 flex items-center justify-center gap-2 text-sm">
+                Next <span class="text-xl">→</span>
+            </button>
+            <button onclick="navigateTo('main-page')" class="bg-slate-600 hover:bg-slate-700 text-white font-bold py-2 px-5 rounded-full shadow-lg transition-transform hover:scale-105 flex items-center justify-center gap-2 text-sm">
+                <span class="text-xl">←</span> Back
+            </button>
+        </div>
+
+        <div class="h-32"></div>
+    </section>
+
+    <!-- INFORMATION PAGE -->
+    <section id="info-page" class="page-section max-w-5xl mx-auto px-4 py-10 relative z-10">
+        <div class="text-center mb-6">
+            <h1 class="text-4xl font-bold text-gradient mb-2">Information Journal</h1>
+            <p class="text-lg text-slate-600">Click any card to flip it and reveal secret botanical/chemical discoveries! 🔍</p>
+        </div>
+
+        <div class="bg-white rounded-3xl shadow-xl overflow-hidden mb-12">
+            <div class="relative h-[280px]">
+                <img src="./bunga%20telang%202.jpg" alt="Bunga telang berbunga di pokok" class="w-full h-full object-cover" onerror="this.style.display='none'; this.parentElement.classList.add('bg-rose-50'); this.parentElement.insertAdjacentHTML('afterbegin', '<p class=&quot;p-6 text-rose-700&quot;>Gambar tak dijumpai. Pastikan fail bunga telang 2.jpg dimuat naik bersama index.html.</p>');">
+                <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-slate-900/80 to-transparent p-6 text-white">
+                    <p class="text-sm font-light italic">Fresh Bunga Telang on the vine. Source: Pannarai Nak-im / Getty Images</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <!-- 1. Botanist -->
+            <div class="flip-card" onclick="this.classList.toggle('flipped'); sfx.playClick();">
+                <div class="flip-card-inner">
+                    <div class="flip-card-front bg-teal-50 border-2 border-teal-200 p-6">
+                        <div class="flex flex-col items-center justify-center h-full text-center">
+                            <span class="text-5xl mb-4">🔬</span>
+                            <h3 class="text-2xl font-bold text-teal-900 mb-2">The Botanist's File</h3>
+                            <p class="text-xs text-teal-600 mt-2">Click to flip & learn classification</p>
+                        </div>
+                    </div>
+                    <div class="flip-card-back bg-white border-2 border-teal-300 p-6 flex flex-col justify-between">
+                        <ul class="space-y-4 text-left text-sm text-slate-700 mt-4">
+                            <li><strong class="text-teal-900">Scientific Identity:</strong> <br><em class="bg-teal-50 px-2 py-0.5 rounded text-teal-800 font-semibold font-serif">Clitoria ternatea</em>, belonging to the <strong class="text-teal-950">Fabaceae</strong> (legume) family.</li>
+                            <li><strong class="text-teal-900">Common Name:</strong> <br>Known commonly in English as the <strong class="text-teal-950">Butterfly Pea</strong>.</li>
+                            <li><strong class="text-teal-900">Ideal Environment:</strong> <br>Thrives best in warm <strong class="text-teal-950">tropical climates</strong> across Malaysia and tropical Asia.</li>
+                        </ul>
+                        <span class="text-xs text-teal-500 font-bold block text-center">Tap to flip back</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. Culinary Artist -->
+            <div class="flip-card" onclick="this.classList.toggle('flipped'); sfx.playClick();">
+                <div class="flip-card-inner">
+                    <div class="flip-card-front bg-amber-50 border-2 border-amber-200 p-6">
+                        <div class="flex flex-col items-center justify-center h-full text-center">
+                            <span class="text-5xl mb-4">🧑‍🍳</span>
+                            <h3 class="text-2xl font-bold text-amber-950 mb-2">The Culinary Artist</h3>
+                            <p class="text-xs text-amber-600 mt-2">Click to flip & read recipe magic</p>
+                        </div>
+                    </div>
+                    <div class="flip-card-back bg-white border-2 border-amber-300 p-6 flex flex-col justify-between">
+                        <ul class="space-y-3 text-left text-sm text-slate-700 overflow-y-auto pr-1">
+                            <li><strong class="text-amber-900">The Blue Dye:</strong> Vibrant blue color from natural pigments called <strong class="text-amber-950">anthocyanins</strong>, famously used to color traditional <strong class="text-amber-950">Nasi Kerabu</strong>.</li>
+                            <li><strong class="text-amber-900">Healthy Option:</strong> A natural alternative rich in antioxidants.</li>
+                            <li><strong class="text-amber-900">The Magic:</strong> Lemon triggers acid reaction turning the beverage <strong class="text-purple-700 font-bold">purple/pink</strong>!</li>
+                            <li><strong class="text-amber-900">The Brewer:</strong> Naturally caffeine-free blue herbal tea.</li>
+                        </ul>
+                        <span class="text-xs text-amber-500 font-bold block text-center mt-2">Tap to flip back</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. Traditional Healer -->
+            <div class="flip-card" onclick="this.classList.toggle('flipped'); sfx.playClick();">
+                <div class="flip-card-inner">
+                    <div class="flip-card-front bg-rose-50 border-2 border-rose-200 p-6">
+                        <div class="flex flex-col items-center justify-center h-full text-center">
+                            <span class="text-5xl mb-4">🌿</span>
+                            <h3 class="text-2xl font-bold text-rose-950 mb-2">The Traditional Healer</h3>
+                            <p class="text-xs text-rose-600 mt-2">Click to flip & explore holistic values</p>
+                        </div>
+                    </div>
+                    <div class="flip-card-back bg-white border-2 border-rose-300 p-6 flex flex-col justify-between">
+                        <ul class="space-y-4 text-left text-sm text-slate-700 mt-4">
+                            <li><strong class="text-rose-900">Antioxidant Powerhouse:</strong> Loaded with key protective compounds, specifically <strong class="text-rose-950">anthocyanins and flavonoids</strong>.</li>
+                            <li><strong class="text-rose-900">Holistic Benefits:</strong> Traditionally utilized to support <strong class="text-rose-950">healthy memory</strong>, promote beautiful <strong class="text-rose-950">healthy skin</strong> & hair.</li>
+                        </ul>
+                        <span class="text-xs text-rose-500 font-bold block text-center">Tap to flip back</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. Eco Warrior -->
+            <div class="flip-card" onclick="this.classList.toggle('flipped'); sfx.playClick();">
+                <div class="flip-card-inner">
+                    <div class="flip-card-front bg-emerald-50 border-2 border-emerald-200 p-6">
+                        <div class="flex flex-col items-center justify-center h-full text-center">
+                            <span class="text-5xl mb-4">🧑‍🌾</span>
+                            <h3 class="text-2xl font-bold text-emerald-950 mb-2">The Eco-Warrior</h3>
+                            <p class="text-xs text-emerald-600 mt-2">Click to flip & explore environmental roles</p>
+                        </div>
+                    </div>
+                    <div class="flip-card-back bg-white border-2 border-emerald-300 p-6 flex flex-col justify-between">
+                        <ul class="space-y-4 text-left text-sm text-slate-700 mt-4">
+                            <li><strong class="text-emerald-900">Soil Fertility:</strong> Enriches home gardens by capturing and <strong class="text-emerald-950">adding nitrogen</strong> naturally to the soil.</li>
+                            <li><strong class="text-emerald-900">Pollinator Magnet:</strong> Bright colored blooms attract friendly visitors like <strong class="text-emerald-950">bees and butterflies</strong>.</li>
+                        </ul>
+                        <span class="text-xs text-emerald-500 font-bold block text-center">Tap to flip back</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 5. Modern Innovator -->
+            <div class="flip-card md:col-span-2 lg:col-span-1" onclick="this.classList.toggle('flipped'); sfx.playClick();">
+                <div class="flip-card-inner">
+                    <div class="flip-card-front bg-indigo-50 border-2 border-indigo-200 p-6">
+                        <div class="flex flex-col items-center justify-center h-full text-center">
+                            <span class="text-5xl mb-4">💡</span>
+                            <h3 class="text-2xl font-bold text-indigo-950 mb-2">The Modern Innovator</h3>
+                            <p class="text-xs text-indigo-600 mt-2">Click to flip & see industrial advances</p>
+                        </div>
+                    </div>
+                    <div class="flip-card-back bg-white border-2 border-indigo-300 p-6 flex flex-col justify-between overflow-hidden">
+                        <div class="overflow-y-auto pr-1 text-left text-sm text-slate-700 space-y-3 mt-2 h-[290px]">
+                            <p><strong class="text-indigo-900">Commercial Demand:</strong> Utilized across global sectors in food, beverages, and natural skincare formulations.</p>
+                            <p><strong class="text-indigo-900">Premium Natural Dye:</strong> FDA approved as a safe, natural color additive (replacing synthetic Blue No. 1).</p>
+                            <p><strong class="text-indigo-900">Scientific Research:</strong> Celebrated for containing stable peptides called <em class="text-indigo-950 font-semibold">cyclotides</em> which are heavily researched for antimicrobial, insecticidal, and medical properties.</p>
+                            <p><strong class="text-indigo-900">Eco-Packaging:</strong> Researched as a smart, color-shifting pH indicator inside biodegradable food freshness packaging films!</p>
+                        </div>
+                        <span class="text-xs text-indigo-500 font-bold block text-center mt-2">Tap to flip back</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-12 p-8 bg-purple-50 rounded-3xl border border-purple-100 text-center max-w-4xl mx-auto">
+            <h4 class="text-2xl font-bold text-purple-900 mb-2">In Conclusion</h4>
+            <p class="text-slate-700 leading-relaxed">
+                Bunga Telang is much more than a beautiful flower. It is a versatile plant with significant cultural, nutritional, medicinal, economic, and environmental value. Its natural blue colour, remarkable colour-changing ability, health-promoting compounds, and ecological benefits make it one of the most unique and useful plants found in tropical regions. As awareness of sustainable living continues to increase, Bunga Telang is likely to remain an important plant for future generations.
+            </p>
+        </div>
+
+        <div class="nav-controls">
+            <button onclick="navigateTo('main-page')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-5 rounded-full shadow-lg transition-transform hover:scale-105 flex items-center justify-center gap-2 text-sm">
+                🏠 Home
+            </button>
+            <button onclick="navigateTo('cafe-page')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-5 rounded-full shadow-lg transition-transform hover:scale-105 flex items-center justify-center gap-2 text-sm">
+                Next <span class="text-xl">→</span>
+            </button>
+            <button onclick="navigateTo('experiment-page')" class="bg-slate-600 hover:bg-slate-700 text-white font-bold py-2 px-5 rounded-full shadow-lg transition-transform hover:scale-105 flex items-center justify-center gap-2 text-sm">
+                <span class="text-xl">←</span> Back
+            </button>
+        </div>
+
+        <div class="h-32"></div>
+    </section>
+
+    <!-- MAGIC CAFE PAGE -->
+    <section id="cafe-page" class="page-section max-w-5xl mx-auto px-4 py-10 relative z-10">
+        <div class="text-center mb-10">
+            <h1 class="text-4xl font-bold text-gradient mb-2">Bunga Telang Magic Cafe</h1>
+            <p class="text-slate-600">Interact and prepare delicious, authentic Malaysian botanical treats step-by-step!</p>
+        </div>
+
+        <div class="flex justify-center gap-4 mb-8">
+            <button id="tab-nasi" onclick="switchRecipe('nasi')" class="px-6 py-3 bg-amber-500 text-white font-bold rounded-full shadow-md hover:bg-amber-600 transition-colors">
+                🌾 Nasi Kerabu Plate
+            </button>
+            <button id="tab-mocktail" onclick="switchRecipe('mocktail')" class="px-6 py-3 bg-slate-200 text-slate-700 font-bold rounded-full shadow hover:bg-slate-300 transition-colors">
+                🍹 Blue Magic Mocktail
+            </button>
+        </div>
+
+        <div class="bg-white p-8 rounded-3xl shadow-lg border border-slate-100 max-w-4xl mx-auto">
+            <!-- RECIPE 1: NASI KERABU SIMULATOR -->
+            <div id="recipe-nasi-section" class="space-y-8">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                    <div class="space-y-4">
+                        <div class="flex justify-between items-center">
+                            <h2 class="text-2xl font-bold text-amber-900 font-serif">Virtual Nasi Kerabu Guide</h2>
+                            <span class="text-sm bg-amber-100 text-amber-800 font-bold px-3 py-1 rounded-full">
+                                Step <span id="nasi-step-indicator">1</span>/9
+                            </span>
+                        </div>
+                        
+                        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 min-h-[90px] flex items-center">
+                            <p id="nasi-instruction-text" class="text-slate-700 text-sm font-semibold">
+                                STEP 1: Pick fresh butterfly pea flowers from the vine to start!
+                            </p>
+                        </div>
+
+                        <div class="space-y-2">
+                            <button id="nasi-action-btn" onclick="executeNasiStep()" class="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow transition-all flex items-center justify-center gap-2">
+                                <span id="nasi-action-label">🌸 Pick Flowers</span>
+                            </button>
+                            <button id="nasi-prev-btn" onclick="prevNasiStep()" class="w-full py-2 px-4 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs transition-colors hidden">
+                                Previous Step
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-50 rounded-2xl p-6 flex flex-col items-center justify-center min-h-[340px] border border-slate-100 relative overflow-hidden">
+                        <div id="visual-pot-overlay" class="absolute inset-0 bg-stone-100/90 flex flex-col items-center justify-center z-40 transition-opacity duration-300 opacity-0 pointer-events-none">
+                            <div class="w-32 h-32 border-8 border-slate-400 bg-slate-300 rounded-b-3xl relative flex items-center justify-center shadow-lg">
+                                <div class="absolute -top-4 w-36 h-4 bg-slate-400 rounded-full"></div>
+                                <div id="pot-liquid" class="w-full h-0 bg-transparent absolute bottom-0 transition-all duration-[1s] rounded-b-2xl"></div>
+                                <span class="text-3xl z-10 animate-bounce">🍲</span>
+                            </div>
+                            <span id="pot-status" class="text-sm font-bold text-slate-700 mt-4">Water boiling...</span>
+                        </div>
+
+                        <div class="relative w-64 h-64 bg-stone-100 rounded-full flex items-center justify-center border-8 border-stone-200/90 plate-depth">
+                            <div class="absolute w-52 h-52 bg-emerald-700 rounded-full opacity-90 transform rotate-6 flex items-center justify-center border-4 border-emerald-800 shadow-inner">
+                                <div class="w-48 h-48 bg-emerald-600 rounded-full border-2 border-dashed border-emerald-500 flex items-center justify-center">
+                                    <div class="absolute inset-0 bg-gradient-to-tr from-transparent to-black/10 rounded-full pointer-events-none"></div>
+                                </div>
+                            </div>
+                            
+                            <div id="rice-pile" class="absolute w-32 h-32 bg-transparent transition-all duration-[1s] flex flex-wrap items-center justify-center relative overflow-visible opacity-0"></div>
+
+                            <div id="side-cucumber" class="absolute top-4 left-14 opacity-0 scale-50 transition-all duration-500 pointer-events-none z-20">
+                                <div class="flex gap-1 transform rotate-12">
+                                    <div class="w-10 h-10 bg-green-600 rounded-full border-4 border-green-800 flex items-center justify-center shadow">
+                                        <div class="w-6 h-6 bg-green-200 rounded-full border border-green-400 flex items-center justify-center">
+                                            <div class="w-3 h-3 bg-green-300 rounded-full border border-green-500"></div>
+                                        </div>
+                                    </div>
+                                    <div class="w-10 h-10 bg-green-600 rounded-full border-4 border-green-800 flex items-center justify-center shadow">
+                                        <div class="w-6 h-6 bg-green-200 rounded-full border border-green-400 flex items-center justify-center">
+                                            <div class="w-3 h-3 bg-green-300 rounded-full border border-green-500"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div id="side-egg" class="absolute bottom-6 right-10 opacity-0 scale-50 transition-all duration-500 pointer-events-none z-20">
+                                <div class="w-12 h-10 bg-white rounded-full border-4 border-slate-300 flex items-center justify-center shadow transform -rotate-45 relative overflow-hidden">
+                                    <div class="w-7 h-7 bg-amber-500 rounded-full absolute -right-1 border-2 border-amber-600"></div>
+                                </div>
+                            </div>
+
+                            <div id="side-serunding" class="absolute top-10 right-10 opacity-0 scale-50 transition-all duration-500 pointer-events-none z-20">
+                                <div class="w-12 h-12 bg-amber-800 rounded-full border-4 border-amber-950 flex flex-wrap gap-1 p-2 items-center justify-center shadow-inner">
+                                    <div class="w-1.5 h-1.5 bg-amber-300 rounded-full"></div>
+                                    <div class="w-1.5 h-1.5 bg-amber-400 rounded-full"></div>
+                                    <div class="w-1.5 h-1.5 bg-amber-500 rounded-full"></div>
+                                </div>
+                            </div>
+
+                            <div id="side-sambal" class="absolute bottom-6 left-12 opacity-0 scale-50 transition-all duration-500 pointer-events-none z-20">
+                                <div class="w-10 h-10 bg-red-700 rounded-full border-4 border-red-900 flex items-center justify-center shadow relative">
+                                    <div class="w-5 h-5 bg-red-600 rounded-full"></div>
+                                    <div class="absolute w-1 h-2 bg-yellow-400 rounded-full top-2 left-3 transform rotate-45"></div>
+                                </div>
+                            </div>
+
+                            <div id="side-fish" class="absolute bottom-12 left-10 opacity-0 scale-50 transition-all duration-500 pointer-events-none z-20">
+                                <div class="w-16 h-10 bg-amber-600 rounded-l-full rounded-r-3xl border-4 border-amber-800 flex items-center justify-end pr-2 shadow transform rotate-12 relative">
+                                    <div class="absolute -left-3 w-4 h-6 bg-amber-700 border-2 border-amber-800 rounded-full"></div>
+                                    <div class="w-2 h-2 bg-slate-900 rounded-full border border-white absolute right-3 top-2"></div>
+                                    <div class="w-5 h-2 bg-amber-700 rounded-full absolute bottom-1 right-5"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <span id="rice-label" class="text-xs font-semibold text-slate-400 mt-4">Plate ready for cooking</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RECIPE 2: MAGIC MOCKTAIL -->
+            <div id="recipe-mocktail-section" class="hidden space-y-8">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                    <div class="space-y-4">
+                        <div class="flex justify-between items-center">
+                            <h2 class="text-2xl font-bold text-amber-900 font-serif">Blue Magic Mocktail</h2>
+                            <span class="text-sm bg-indigo-100 text-indigo-800 font-bold px-3 py-1 rounded-full">
+                                Step <span id="mocktail-step-indicator">1</span>/6
+                            </span>
+                        </div>
+
+                        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 min-h-[90px] flex items-center">
+                            <p id="mocktail-instruction-text" class="text-slate-700 text-sm font-semibold">
+                                STEP 1: Collect freshly bloomed butterfly pea flowers from the garden.
+                            </p>
+                        </div>
+
+                        <div class="space-y-2">
+                            <button id="mocktail-action-btn" onclick="executeMocktailStep()" class="w-full py-3 px-4 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-xl shadow transition-all flex items-center justify-center gap-2">
+                                <span id="mocktail-action-label">🌸 Collect Flowers</span>
+                            </button>
+                            <button id="mocktail-prev-btn" onclick="prevMocktailStep()" class="w-full py-2 px-4 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs transition-colors hidden">
+                                Previous Step
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-50 rounded-2xl p-6 flex flex-col items-center justify-center min-h-[320px] border border-slate-100 relative">
+                        <div class="relative w-40 h-52 flex flex-col items-center justify-end">
+                            <div class="relative w-36 h-36 border-4 border-slate-300 rounded-b-full overflow-hidden flex items-end shadow-inner bg-white/20 z-10">
+                                <div id="mocktail-liquid" class="w-full h-0 bg-transparent transition-all duration-[1s] relative flex flex-col justify-end items-center" style="--mocktail-fill-height: 75%;">
+                                    <div class="absolute inset-0 flex justify-around items-end overflow-hidden pointer-events-none pb-2">
+                                        <div class="w-2 h-2 bg-white/50 rounded-full animate-bounce"></div>
+                                        <div class="w-3 h-3 bg-white/40 rounded-full animate-bounce delay-100"></div>
+                                        <div class="w-1 h-1 bg-white/60 rounded-full animate-bounce delay-300"></div>
+                                    </div>
+                                    <div id="ice-container" class="absolute inset-0 transition-opacity duration-500"></div>
+                                </div>
+                            </div>
+
+                            <div class="w-3 h-12 bg-slate-300 shadow"></div>
+                            <div class="w-20 h-4 bg-slate-300 rounded-full shadow"></div>
+
+                            <div id="lemon-slice" class="absolute -top-6 left-1/2 -translate-x-1/2 w-14 h-14 bg-yellow-400 rounded-full border-4 border-yellow-600 flex items-center justify-center shadow-lg transform rotate-12 opacity-0 transition-all duration-500 z-30">
+                                <div class="w-10 h-10 bg-yellow-100 rounded-full border border-dashed border-yellow-400 flex items-center justify-center font-bold text-[10px] text-yellow-600">🍋</div>
+                            </div>
+                        </div>
+                        <span id="mocktail-label" class="text-xs font-semibold text-slate-400 mt-4">Empty Cocktail Glass</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-8 border-t border-slate-100 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div class="flex items-center gap-4">
+                    <div id="badge-icon" class="w-16 h-16 bg-slate-100 border-2 border-dashed border-slate-300 rounded-full flex items-center justify-center text-3xl">
+                        🔒
+                    </div>
+                    <div>
+                        <h4 class="text-lg font-bold text-slate-800">Bunga Telang Chef Status</h4>
+                        <p class="text-xs text-slate-500" id="badge-instructions">Complete both Nasi Kerabu & Mocktail to earn your badge!</p>
+                    </div>
+                </div>
+                <button onclick="resetCafeGame(); sfx.playClick();" class="py-2 px-4 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-lg text-xs transition-colors">
+                    Reset Cafe Plate
+                </button>
+            </div>
+        </div>
+
+        <div class="nav-controls">
+            <button onclick="navigateTo('main-page')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-5 rounded-full shadow-lg transition-transform hover:scale-105 flex items-center justify-center gap-2 text-sm">
+                🏠 Home
+            </button>
+            <button onclick="navigateTo('sdg-page')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-5 rounded-full shadow-lg transition-transform hover:scale-105 flex items-center justify-center gap-2 text-sm">
+                Next <span class="text-xl">→</span>
+            </button>
+            <button onclick="navigateTo('info-page')" class="bg-slate-600 hover:bg-slate-700 text-white font-bold py-2 px-5 rounded-full shadow-lg transition-transform hover:scale-105 flex items-center justify-center gap-2 text-sm">
+                <span class="text-xl">←</span> Back
+            </button>
+        </div>
+
+        <div class="h-32"></div>
+    </section>
+
+    <!-- UN SDG PAGE -->
+    <section id="sdg-page" class="page-section max-w-5xl mx-auto px-4 py-10 relative z-10">
+        <div class="text-center mb-10">
+            <h1 class="text-4xl font-bold text-gradient mb-3">UN Sustainable Development Goals</h1>
+            <p class="text-slate-600 max-w-2xl mx-auto">Discover how our Colour Chemistry Lab actively advances key global sustainability targets.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <!-- 1. SDG 4 -->
+            <div class="bg-white p-8 rounded-3xl shadow-lg border-t-8 border-rose-500 flex flex-col justify-between hover:shadow-2xl transition-all">
+                <div>
+                    <div class="flex items-center gap-4 mb-4">
+                        <div class="w-16 h-16 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center text-3xl font-bold shrink-0">
+                            🎓
+                        </div>
+                        <div>
+                            <span class="text-xs font-bold uppercase tracking-wider text-rose-500 bg-rose-50 px-2.5 py-1 rounded-full">UN SDG 4</span>
+                            <h3 class="text-xl font-bold text-slate-800 mt-1">Quality Education</h3>
+                        </div>
+                    </div>
+                    <div class="mt-4 pt-4 border-t border-slate-100">
+                        <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">How it applies:</h4>
+                        <p class="text-sm text-slate-700 leading-relaxed">
+                            Our website turns complex science (pH indicator chemistry, anthocyanins, and botanical biology) into an interactive, gamified learning experience with animated experiments, step-by-step cooking simulations, AR visualization, and a live quiz.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. SDG 12 -->
+            <div class="bg-white p-8 rounded-3xl shadow-lg border-t-8 border-amber-500 flex flex-col justify-between hover:shadow-2xl transition-all">
+                <div>
+                    <div class="flex items-center gap-4 mb-4">
+                        <div class="w-16 h-16 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center text-3xl font-bold shrink-0">
+                            ♻️
+                        </div>
+                        <div>
+                            <span class="text-xs font-bold uppercase tracking-wider text-amber-500 bg-amber-50 px-2.5 py-1 rounded-full">UN SDG 12</span>
+                            <h3 class="text-xl font-bold text-slate-800 mt-1">Responsible Consumption & Production</h3>
+                        </div>
+                    </div>
+                    <div class="mt-4 pt-4 border-t border-slate-100">
+                        <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">How it applies:</h4>
+                        <p class="text-sm text-slate-700 leading-relaxed">
+                            The website highlights how natural plant extracts like Bunga Telang can replace artificial chemical dyes and synthetic food colorings with eco-friendly, biodegradable, plant-based alternatives.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. SDG 3 -->
+            <div class="bg-white p-8 rounded-3xl shadow-lg border-t-8 border-emerald-500 flex flex-col justify-between hover:shadow-2xl transition-all">
+                <div>
+                    <div class="flex items-center gap-4 mb-4">
+                        <div class="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center text-3xl font-bold shrink-0">
+                            🥗
+                        </div>
+                        <div>
+                            <span class="text-xs font-bold uppercase tracking-wider text-emerald-500 bg-emerald-50 px-2.5 py-1 rounded-full">UN SDG 3</span>
+                            <h3 class="text-xl font-bold text-slate-800 mt-1">Good Health & Well-being</h3>
+                        </div>
+                    </div>
+                    <div class="mt-4 pt-4 border-t border-slate-100">
+                        <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">How it applies:</h4>
+                        <p class="text-sm text-slate-700 leading-relaxed">
+                            In the Information and Magic Cafe sections, we showcase natural, health-promoting traditional foods (like Nasi Kerabu and antioxidant-rich herbal drinks) over processed foods containing artificial chemical additives.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. SDG 15 -->
+            <div class="bg-white p-8 rounded-3xl shadow-lg border-t-8 border-teal-500 flex flex-col justify-between hover:shadow-2xl transition-all">
+                <div>
+                    <div class="flex items-center gap-4 mb-4">
+                        <div class="w-16 h-16 bg-teal-100 text-teal-600 rounded-2xl flex items-center justify-center text-3xl font-bold shrink-0">
+                            🌍
+                        </div>
+                        <div>
+                            <span class="text-xs font-bold uppercase tracking-wider text-teal-500 bg-teal-50 px-2.5 py-1 rounded-full">UN SDG 15</span>
+                            <h3 class="text-xl font-bold text-slate-800 mt-1">Life on Land</h3>
+                        </div>
+                    </div>
+                    <div class="mt-4 pt-4 border-t border-slate-100">
+                        <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">How it applies:</h4>
+                        <p class="text-sm text-slate-700 leading-relaxed">
+                            It promotes appreciation and knowledge of local biodiversity, native flora (<em>Clitoria ternatea</em>), and sustainable botanical research.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="nav-controls">
+            <button onclick="navigateTo('main-page')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-5 rounded-full shadow-lg transition-transform hover:scale-105 flex items-center justify-center gap-2 text-sm">
+                🏠 Home
+            </button>
+            <button onclick="navigateTo('quiz-page')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-5 rounded-full shadow-lg transition-transform hover:scale-105 flex items-center justify-center gap-2 text-sm">
+                Next <span class="text-xl">→</span>
+            </button>
+            <button onclick="navigateTo('cafe-page')" class="bg-slate-600 hover:bg-slate-700 text-white font-bold py-2 px-5 rounded-full shadow-lg transition-transform hover:scale-105 flex items-center justify-center gap-2 text-sm">
+                <span class="text-xl">←</span> Back
+            </button>
+        </div>
+
+        <div class="h-32"></div>
+    </section>
+
+    <!-- QUIZ PAGE -->
+    <section id="quiz-page" class="page-section max-w-4xl mx-auto px-4 py-10 relative z-10">
+        <div class="text-center mb-6">
+            <h1 class="text-4xl font-bold text-gradient mb-2">Botanical Knowledge Quiz</h1>
+            <p class="text-slate-600">Prove your botanical expertise! Questions and answers are shuffled dynamically.</p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+            <div class="bg-white border-2 border-orange-100 p-4 rounded-2xl flex items-center justify-center gap-3 shadow-sm">
+                <span class="text-3xl animate-bounce">🔥</span>
+                <div>
+                    <p class="text-xs text-slate-400 font-bold uppercase tracking-wider">Streak</p>
+                    <p class="text-xl font-bold text-orange-500" id="streak-display">0</p>
+                </div>
+            </div>
+            <div class="bg-white border-2 border-indigo-100 p-4 rounded-2xl flex items-center justify-center gap-3 shadow-sm">
+                <span class="text-3xl">🏆</span>
+                <div>
+                    <p class="text-xs text-slate-400 font-bold uppercase tracking-wider">XP Points</p>
+                    <p class="text-xl font-bold text-indigo-600" id="xp-display">0</p>
+                </div>
+            </div>
+            <div class="bg-white border-2 border-blue-100 p-4 rounded-2xl flex items-center justify-center gap-3 shadow-sm">
+                <span class="text-3xl">⚡</span>
+                <div>
+                    <p class="text-xs text-slate-400 font-bold uppercase tracking-wider">Progress</p>
+                    <p class="text-xl font-bold text-blue-600" id="progress-text">0/15</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="quiz-container" class="bg-white rounded-3xl shadow-xl p-6 md:p-10 space-y-8"></div>
+
+        <div id="quiz-results" class="hidden mt-8 text-center bg-indigo-50 p-8 rounded-3xl border-2 border-indigo-200">
+            <h2 class="text-3xl font-bold text-indigo-900 mb-2">Quiz Completed!</h2>
+            <p class="text-5xl font-bold text-gradient my-4" id="score-display">0%</p>
+            <p class="text-xl font-semibold text-slate-700 mb-4" id="score-message">Message</p>
+            <button onclick="resetQuiz(); sfx.playClick();" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-full shadow-lg transition-all">
+                Retry Quiz
+            </button>
+        </div>
+
+        <div class="nav-controls">
+            <button onclick="navigateTo('main-page')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-5 rounded-full shadow-lg transition-transform hover:scale-105 flex items-center justify-center gap-2 text-sm">
+                🏠 Home
+            </button>
+            <button onclick="navigateTo('sdg-page')" class="bg-slate-600 hover:bg-slate-700 text-white font-bold py-2 px-5 rounded-full shadow-lg transition-transform hover:scale-105 flex items-center justify-center gap-2 text-sm">
+                <span class="text-xl">←</span> Back
+            </button>
+        </div>
+
+        <div class="h-32"></div>
+    </section>
+
+    <!-- JAVASCRIPT -->
+    <script>
+        // High-Quality Synthetic Sound Effects Class using Web Audio API
+        class SoundEffects {
+            constructor() {
+                this.ctx = null;
+            }
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            }
+            playClick() {
+                this.init();
+                const ctx = this.ctx;
+                if (ctx.state === 'suspended') ctx.resume();
+                
+                const osc = ctx.createOscillator();
+                const gainNode = ctx.createGain();
+                
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(440, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(110, ctx.currentTime + 0.1);
+                
+                gainNode.gain.setValueAtTime(0.12, ctx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1);
+                
+                osc.connect(gainNode);
+                gainNode.connect(ctx.destination);
+                
+                osc.start();
+                osc.stop(ctx.currentTime + 0.1);
+            }
+            playPourSparkle() {
+                this.init();
+                const ctx = this.ctx;
+                if (ctx.state === 'suspended') ctx.resume();
+                
+                const now = ctx.currentTime;
+                const freqs = [523.25, 659.25, 783.99, 880.00, 1046.50]; 
+                
+                freqs.forEach((freq, idx) => {
+                    const osc = ctx.createOscillator();
+                    const gainNode = ctx.createGain();
+                    
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, now + idx * 0.06);
+                    
+                    gainNode.gain.setValueAtTime(0.0, now);
+                    gainNode.gain.linearRampToValueAtTime(0.05, now + idx * 0.06 + 0.02);
+                    gainNode.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.06 + 0.25);
+                    
+                    osc.connect(gainNode);
+                    gainNode.connect(ctx.destination);
+                    
+                    osc.start(now + idx * 0.06);
+                    osc.stop(now + idx * 0.06 + 0.3);
+                });
+            }
+            playWrongChime() {
+                this.init();
+                const ctx = this.ctx;
+                if (ctx.state === 'suspended') ctx.resume();
+                
+                const now = ctx.currentTime;
+                const freqs = [330.00, 220.00]; 
+                
+                freqs.forEach((freq, idx) => {
+                    const osc = ctx.createOscillator();
+                    const gainNode = ctx.createGain();
+                    
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, now + idx * 0.15);
+                    
+                    gainNode.gain.setValueAtTime(0.0, now);
+                    gainNode.gain.linearRampToValueAtTime(0.08, now + idx * 0.15 + 0.03);
+                    gainNode.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.15 + 0.4);
+                    
+                    osc.connect(gainNode);
+                    gainNode.connect(ctx.destination);
+                    
+                    osc.start(now + idx * 0.15);
+                    osc.stop(now + idx * 0.15 + 0.45);
+                });
+            }
+            playChime() {
+                this.init();
+                const ctx = this.ctx;
+                if (ctx.state === 'suspended') ctx.resume();
+                
+                const now = ctx.currentTime;
+                const chords = [523.25, 659.25, 783.99, 1174.66];
+                chords.forEach((freq, index) => {
+                    const osc = ctx.createOscillator();
+                    const gainNode = ctx.createGain();
+                    
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, now + index * 0.06);
+                    
+                    gainNode.gain.setValueAtTime(0.0, now);
+                    gainNode.gain.linearRampToValueAtTime(0.06, now + index * 0.06 + 0.03);
+                    gainNode.gain.exponentialRampToValueAtTime(0.001, now + index * 0.06 + 0.4);
+                    
+                    osc.connect(gainNode);
+                    gainNode.connect(ctx.destination);
+                    
+                    osc.start(now + index * 0.06);
+                    osc.stop(now + index * 0.06 + 0.5);
+                });
+            }
+            // Futuristic AR Scanner Beep
+            playARBeep() {
+                this.init();
+                const ctx = this.ctx;
+                if (ctx.state === 'suspended') ctx.resume();
+                
+                const now = ctx.currentTime;
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(1200, now);
+                osc.frequency.exponentialRampToValueAtTime(2400, now + 0.12);
+                
+                gain.gain.setValueAtTime(0.08, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+                
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.12);
+            }
+        }
+        const sfx = new SoundEffects();
+
+        // Beautiful hand-rendered real-looking Bunga Telang flower generator
+        function initGardenAtmosphere() {
+            const container = document.getElementById('garden-ambient-container');
+            container.innerHTML = '';
+            
+            const totalPetals = 12;
+            const totalFlowers = 40;
+
+            const flowerPositions = [];
+            const titleSidePositions = [[13, 82], [87, 82], [10, 142], [90, 142], [14, 192], [86, 192]];
+            for (let i = 0; i < totalFlowers; i++) {
+                const fl = document.createElement('div');
+                fl.className = 'ambient-flower';
+                
+                fl.innerHTML = `
+                    <svg width="100" height="100" viewBox="0 0 100 100" aria-hidden="true">
+                        <defs>
+                            <radialGradient id="telang-purple-${i}" cx="48%" cy="38%" r="72%">
+                                <stop offset="0%" stop-color="#a78bfa" />
+                                <stop offset="52%" stop-color="#7c3aed" />
+                                <stop offset="100%" stop-color="#3b0764" />
+                            </radialGradient>
+                            <linearGradient id="telang-throat-${i}" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stop-color="#fffef2" />
+                                <stop offset="58%" stop-color="#fef08a" />
+                                <stop offset="100%" stop-color="#facc15" />
+                            </linearGradient>
+                        </defs>
+                        <g stroke="#4c1d95" stroke-width="1.5" stroke-linejoin="round">
+                            <path d="M49 51 C38 48 24 42 21 30 C18 19 26 12 36 16 C45 19 49 30 51 40 Z" fill="url(#telang-purple-${i})" />
+                            <path d="M51 51 C62 48 76 42 79 30 C82 19 74 12 64 16 C55 19 51 30 49 40 Z" fill="url(#telang-purple-${i})" />
+                            <path d="M49 45 C35 45 20 49 13 61 C6 74 17 88 32 93 C43 97 57 97 68 93 C83 88 94 74 87 61 C80 49 65 45 51 45 Z" fill="url(#telang-purple-${i})" />
+                        </g>
+                        <g fill="none" stroke="#ddd6fe" stroke-width="1.1" opacity="0.72">
+                            <path d="M50 77 Q38 66 16 62 M50 77 Q39 58 24 51 M50 77 Q45 55 34 46 M50 77 Q50 54 50 46 M50 77 Q56 55 67 46 M50 77 Q62 58 76 51 M50 77 Q73 66 86 62" />
+                            <path d="M49 48 Q40 34 34 20 M51 48 Q60 34 66 20" opacity="0.65" />
+                        </g>
+                        <path d="M45 39 C40 43 41 51 45 59 C48 66 49 74 50 81 C53 72 55 66 59 59 C63 51 62 43 55 39 C52 37 48 37 45 39 Z" fill="url(#telang-throat-${i})" />
+                        <path d="M48 41 C46 46 48 52 50 56 C53 51 54 46 52 41 Z" fill="#fff" opacity="0.78" />
+                    </svg>
+                `;
+                
+                fl.style.position = 'absolute';
+                // Add a few blooms beside the title, then scatter the rest across the page.
+                let x;
+                let y;
+                if (i < titleSidePositions.length) {
+                    [x, y] = titleSidePositions[i];
+                } else {
+                    let spaced = false;
+                    while (!spaced) {
+                        x = 5 + Math.random() * 90;
+                        y = 18 + Math.random() * 48;
+                        spaced = flowerPositions.every(([otherX, otherY]) =>
+                            ((x - otherX) / 7) ** 2 + ((y - otherY) / 6) ** 2 >= 1
+                        );
+                    }
+                }
+                flowerPositions.push([x, y]);
+                fl.style.left = `${x}%`;
+                fl.style.top = i < titleSidePositions.length ? `${y}px` : `${y}%`;
+                fl.style.width = 'clamp(38px, 4vw, 60px)';
+                fl.style.opacity = '0.48';
+                fl.style.setProperty('--flower-rotation', `${i * 37}deg`);
+                fl.style.animationDelay = `${(i % 4) * -1.4}s`;
+                fl.setAttribute('aria-hidden', 'true');
+                container.appendChild(fl);
+            }
+
+            for (let i = 0; i < totalPetals; i++) {
+                const petal = document.createElement('div');
+                petal.className = 'petal';
+                
+                const size = 12 + Math.random() * 15;
+                petal.style.width = `${size}px`;
+                petal.style.height = `${size}px`;
+                petal.style.left = `${Math.random() * 100}%`;
+                petal.style.top = `-${30 + Math.random() * 50}px`;
+                petal.style.animationDuration = `${6 + Math.random() * 10}s`;
+                petal.style.animationDelay = `${Math.random() * 8}s`;
+                
+                const hues = [210, 220, 230, 240];
+                const selectedHue = hues[Math.floor(Math.random() * hues.length)];
+                petal.style.backgroundColor = `hsla(${selectedHue}, 80%, 60%, ${0.3 + Math.random() * 0.4})`;
+                
+                container.appendChild(petal);
+            }
+
+        }
+
+        // Navigation Manager
+        function navigateTo(pageId) {
+            sfx.playClick();
+            document.querySelectorAll('.page-section').forEach(page => {
+                page.classList.remove('active');
+            });
+            document.getElementById(pageId).classList.add('active');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+
+            if (pageId === 'ar-page') {
+                initARThreeJS();
+            } else if (arStream) {
+                stopARCamera();
+            }
+        }
+
+        // --- REAL-TIME 3D AR MOLECULAR ENGINE (THREE.JS) ---
+        let arScene, arCamera, arRenderer, moleculeGroup;
+        let isArInitialized = false;
+        let arStream = null;
+        let autoRotateAR = true;
+        let isMouseDownAR = false;
+        let previousMousePositionAR = { x: 0, y: 0 };
+        let arMoleculeColor = 0x2563eb; // Royal Blue at pH 7
+
+        function initARThreeJS() {
+            if (isArInitialized) return;
+
+            const container = document.getElementById('ar-viewport');
+            const canvas = document.getElementById('ar-three-canvas');
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+
+            // Scene setup
+            arScene = new THREE.Scene();
+
+            // Camera setup
+            arCamera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+            arCamera.position.set(0, 0, 14);
+
+            // Renderer setup with transparency over camera feed
+            arRenderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true, antialias: true });
+            arRenderer.setSize(width, height);
+            arRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+            arScene.add(ambientLight);
+
+            const pointLight1 = new THREE.PointLight(0x38bdf8, 1.5);
+            pointLight1.position.set(10, 10, 10);
+            arScene.add(pointLight1);
+
+            const pointLight2 = new THREE.PointLight(0x818cf8, 1.2);
+            pointLight2.position.set(-10, -10, -10);
+            arScene.add(pointLight2);
+
+            // Build initial 3D Delphinidin Molecular Structure
+            build3DMolecule(arMoleculeColor);
+
+            // Pointer Orbit Controls for manual inspection
+            canvas.addEventListener('mousedown', (e) => {
+                isMouseDownAR = true;
+                previousMousePositionAR = { x: e.clientX, y: e.clientY };
+            });
+
+            canvas.addEventListener('mousemove', (e) => {
+                if (!isMouseDownAR || !moleculeGroup) return;
+                const deltaX = e.clientX - previousMousePositionAR.x;
+                const deltaY = e.clientY - previousMousePositionAR.y;
+
+                moleculeGroup.rotation.y += deltaX * 0.01;
+                moleculeGroup.rotation.x += deltaY * 0.01;
+
+                previousMousePositionAR = { x: e.clientX, y: e.clientY };
+            });
+
+            window.addEventListener('mouseup', () => { isMouseDownAR = false; });
+            
+            // Touch Orbit Controls
+            canvas.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 1) {
+                    isMouseDownAR = true;
+                    previousMousePositionAR = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                }
+            });
+
+            canvas.addEventListener('touchmove', (e) => {
+                if (!isMouseDownAR || !moleculeGroup || e.touches.length !== 1) return;
+                const deltaX = e.touches[0].clientX - previousMousePositionAR.x;
+                const deltaY = e.touches[0].clientY - previousMousePositionAR.y;
+
+                moleculeGroup.rotation.y += deltaX * 0.01;
+                moleculeGroup.rotation.x += deltaY * 0.01;
+
+                previousMousePositionAR = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            });
+
+            window.addEventListener('touchend', () => { isMouseDownAR = false; });
+
+            // Handle Resize
+            window.addEventListener('resize', () => {
+                if (!arCamera || !arRenderer || !container) return;
+                const w = container.clientWidth;
+                const h = container.clientHeight;
+                arCamera.aspect = w / h;
+                arCamera.updateProjectionMatrix();
+                arRenderer.setSize(w, h);
+            });
+
+            // Animation Loop
+            function animateAR() {
+                requestAnimationFrame(animateAR);
+                if (moleculeGroup && autoRotateAR && !isMouseDownAR) {
+                    moleculeGroup.rotation.y += 0.008;
+                    moleculeGroup.rotation.x += 0.003;
+                }
+                arRenderer.render(arScene, arCamera);
+            }
+            animateAR();
+
+            isArInitialized = true;
+        }
+
+        // Build 3D Anthocyanin/Delphinidin Ball-and-Stick Molecule Model
+        function build3DMolecule(hexColor) {
+            if (moleculeGroup) arScene.remove(moleculeGroup);
+
+            moleculeGroup = new THREE.Group();
+
+            // Materials
+            const carbonMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.3, metalness: 0.2 });
+            const oxygenMat = new THREE.MeshStandardMaterial({ color: 0xef4444, roughness: 0.2, metalness: 0.1 });
+            const hydrogenMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.1 });
+            
+            // Key Anthocyanin Chromophore Core Material (Responsive to pH)
+            const coreMat = new THREE.MeshStandardMaterial({ 
+                color: hexColor, 
+                roughness: 0.1, 
+                metalness: 0.4,
+                emissive: hexColor,
+                emissiveIntensity: 0.25
+            });
+
+            const bondMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.4 });
+
+            // Atom Coordinates (Simplified 3-Ring Polyphenol Delphinidin Skeleton)
+            const atoms = [
+                // A-Ring (Benzene Ring 1)
+                { pos: [-3, 0, 0], mat: carbonMat, r: 0.45 },
+                { pos: [-2, 1.5, 0], mat: carbonMat, r: 0.45 },
+                { pos: [-0.5, 1.5, 0], mat: carbonMat, r: 0.45 },
+                { pos: [0, 0, 0], mat: carbonMat, r: 0.45 },
+                { pos: [-1, -1.2, 0], mat: carbonMat, r: 0.45 },
+                { pos: [-2.5, -1.2, 0], mat: carbonMat, r: 0.45 },
+
+                // C-Ring (Pyrylium Ring with Oxygen)
+                { pos: [1.2, 0.8, 0], mat: oxygenMat, r: 0.4 },
+                { pos: [2.2, 0, 0], mat: coreMat, r: 0.55 }, // Active chromophore center
+                { pos: [1.5, -1.2, 0], mat: coreMat, r: 0.5 },
+
+                // B-Ring (Phenyl Ring 2 - Blue Anthocyanin Color Driver)
+                { pos: [3.6, 0, 0], mat: coreMat, r: 0.5 },
+                { pos: [4.4, 1.2, 0.4], mat: coreMat, r: 0.45 },
+                { pos: [5.8, 1.2, 0.4], mat: coreMat, r: 0.45 },
+                { pos: [6.5, 0, 0], mat: carbonMat, r: 0.45 },
+                { pos: [5.8, -1.2, -0.4], mat: coreMat, r: 0.45 },
+                { pos: [4.4, -1.2, -0.4], mat: coreMat, r: 0.45 },
+
+                // Hydroxyl (-OH) and Glucoside Groups
+                { pos: [-4.2, 0, 0], mat: oxygenMat, r: 0.38 },
+                { pos: [-4.8, 0.6, 0], mat: hydrogenMat, r: 0.28 },
+                
+                { pos: [7.7, 0, 0], mat: oxygenMat, r: 0.38 },
+                { pos: [8.3, -0.4, 0], mat: hydrogenMat, r: 0.28 },
+
+                { pos: [6.4, 2.3, 0.8], mat: oxygenMat, r: 0.38 },
+                { pos: [7.2, 2.5, 1.2], mat: hydrogenMat, r: 0.28 },
+
+                { pos: [6.4, -2.3, -0.8], mat: oxygenMat, r: 0.38 },
+                { pos: [7.2, -2.5, -1.2], mat: hydrogenMat, r: 0.28 }
+            ];
+
+            const atomMeshes = [];
+            atoms.forEach(a => {
+                const geo = new THREE.SphereGeometry(a.r, 24, 24);
+                const mesh = new THREE.Mesh(geo, a.mat);
+                mesh.position.set(...a.pos);
+                moleculeGroup.add(mesh);
+                atomMeshes.push(mesh);
+            });
+
+            // Bond Connections
+            const bonds = [
+                [0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 0],
+                [2, 6], [6, 7], [7, 8], [8, 3],
+                [7, 9], [9, 10], [10, 11], [11, 12], [12, 13], [13, 14], [14, 9],
+                [0, 15], [15, 16],
+                [12, 17], [17, 18],
+                [11, 19], [19, 20],
+                [13, 21], [21, 22]
+            ];
+
+            bonds.forEach(([i, j]) => {
+                const p1 = new THREE.Vector3(...atoms[i].pos);
+                const p2 = new THREE.Vector3(...atoms[j].pos);
+                
+                const distance = p1.distanceTo(p2);
+                const cylinderGeo = new THREE.CylinderGeometry(0.1, 0.1, distance, 12);
+                const cylinder = new THREE.Mesh(cylinderGeo, bondMat);
+
+                // Position and orient bond between atoms
+                const midPoint = new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5);
+                cylinder.position.copy(midPoint);
+                cylinder.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), p2.clone().sub(p1).normalize());
+
+                moleculeGroup.add(cylinder);
+            });
+
+            // Halo Ring around center
+            const ringGeo = new THREE.TorusGeometry(3.5, 0.04, 16, 100);
+            const ringMat = new THREE.MeshBasicMaterial({ color: hexColor, transparent: true, opacity: 0.4 });
+            const haloRing = new THREE.Mesh(ringGeo, ringMat);
+            haloRing.rotation.x = Math.PI / 2;
+            moleculeGroup.add(haloRing);
+
+            // Center group position and scale
+            moleculeGroup.position.set(-1.2, 0, 0);
+            moleculeGroup.scale.set(0.85, 0.85, 0.85);
+
+            arScene.add(moleculeGroup);
+        }
+
+        // Camera Feed Toggle
+        async function startARCamera() {
+            sfx.playClick();
+            const video = document.getElementById('ar-camera-video');
+            const statusDot = document.getElementById('ar-status-dot');
+            const statusText = document.getElementById('ar-status-text');
+            const cameraBtnLabel = document.getElementById('label-camera-btn');
+            const errorBanner = document.getElementById('ar-camera-error');
+            const simulatedBg = document.getElementById('ar-simulated-bg');
+
+            if (arStream) {
+                stopARCamera();
+                return;
+            }
+
+            try {
+                const constraints = { video: { facingMode: { ideal: "environment" } } };
+                arStream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = arStream;
+                video.classList.remove('hidden');
+                simulatedBg.classList.add('opacity-0');
+                
+                statusDot.className = "w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping";
+                statusText.innerText = "LIVE CAMERA AR ACTIVE";
+                cameraBtnLabel.innerText = "Stop Camera";
+                errorBanner.classList.add('hidden');
+                
+                sfx.playARBeep();
+                triggerARScanSimulation();
+            } catch (err) {
+                console.warn("Camera access failed or unavailable:", err);
+                errorBanner.classList.remove('hidden');
+                statusText.innerText = "SIMULATED AR MODE ACTIVE";
+            }
+        }
+
+        function stopARCamera() {
+            if (arStream) {
+                arStream.getTracks().forEach(track => track.stop());
+                arStream = null;
+            }
+            const video = document.getElementById('ar-camera-video');
+            const simulatedBg = document.getElementById('ar-simulated-bg');
+            const statusDot = document.getElementById('ar-status-dot');
+            const statusText = document.getElementById('ar-status-text');
+            const cameraBtnLabel = document.getElementById('label-camera-btn');
+
+            video.classList.add('hidden');
+            simulatedBg.classList.remove('opacity-0');
+            statusDot.className = "w-2.5 h-2.5 rounded-full bg-yellow-400 animate-pulse";
+            statusText.innerText = "CAMERA READY - TAP START";
+            cameraBtnLabel.innerText = "Start Camera";
+        }
+
+        // Trigger Scan Beam & Detect Flower
+        function triggerARScanSimulation() {
+            sfx.playARBeep();
+            const beam = document.getElementById('scan-beam');
+            const matchBadge = document.getElementById('ar-match-badge');
+            const reticleBox = document.getElementById('reticle-box');
+            const promptBanner = document.getElementById('ar-prompt-banner');
+
+            beam.classList.remove('hidden');
+            reticleBox.className = "relative w-64 h-64 md:w-80 md:h-80 rounded-2xl transition-all duration-500 border-2 border-cyan-400 shadow-[0_0_20px_rgba(56,189,248,0.5)]";
+
+            setTimeout(() => {
+                beam.classList.add('hidden');
+                matchBadge.classList.remove('hidden');
+                reticleBox.className = "relative w-64 h-64 md:w-80 md:h-80 rounded-2xl transition-all duration-500 border-2 border-emerald-400 shadow-[0_0_25px_rgba(52,211,153,0.6)]";
+                
+                promptBanner.innerHTML = "🎉 <strong>Clitoria Ternatea Detected!</strong> 3D Molecular structure unlocked. Drag to rotate!";
+                
+                // Pop-in animation for 3D Molecule
+                if (moleculeGroup) {
+                    moleculeGroup.scale.set(0.1, 0.1, 0.1);
+                    let s = 0.1;
+                    const popTimer = setInterval(() => {
+                        s += 0.08;
+                        if (s >= 0.85) {
+                            s = 0.85;
+                            clearInterval(popTimer);
+                        }
+                        moleculeGroup.scale.set(s, s, s);
+                    }, 20);
+                }
+
+                sfx.playChime();
+            }, 1800);
+        }
+
+        // pH Chemical Shift Reaction in 3D AR
+        function setARMoleculePH(phValue) {
+            sfx.playClick();
+            const phLabel = document.getElementById('ar-ph-label');
+            const title = document.getElementById('mol-title');
+            const desc = document.getElementById('mol-desc');
+            const formula = document.getElementById('mol-formula');
+            const spectrum = document.getElementById('mol-spectrum');
+
+            if (phValue <= 3) {
+                arMoleculeColor = 0xdb2777; // Magenta / Red-Purple
+                phLabel.innerText = `pH ${phValue} (Acidic Flavylium Cation)`;
+                phLabel.className = "text-[11px] font-mono text-pink-300 bg-pink-900/60 px-2 py-0.5 rounded border border-pink-500/30";
+                
+                title.innerText = "Flavylium Cation (Acidic Form)";
+                desc.innerText = "In acidic solutions ($pH < 3$), protons ($H^+$) bind to the oxygen heteroatom, stabilizing the conjugated double bonds and shifting light absorption to red/purple.";
+                formula.innerText = "$C_{27}H_{31}O_{16}^+$ (Protonated Red Cation)";
+                spectrum.innerText = "520–550 nm (Vibrant Magenta)";
+            } else if (phValue >= 10) {
+                arMoleculeColor = 0x10b981; // Emerald Green
+                phLabel.innerText = `pH ${phValue} (Alkaline Chalcone/Anhydrobase)`;
+                phLabel.className = "text-[11px] font-mono text-emerald-300 bg-emerald-900/60 px-2 py-0.5 rounded border border-emerald-500/30";
+
+                title.innerText = "Chalcone / Anhydrobase (Alkaline Form)";
+                desc.innerText = "Under alkaline conditions ($pH > 9$), hydroxide ions ($OH^-$) open the pyrylium ring into a chalcone structure, shifting color to green/yellow.";
+                formula.innerText = "$C_{27}H_{30}O_{16}$ (Deprotonated Green Base)";
+                spectrum.innerText = "610–650 nm (Emerald Green)";
+            } else {
+                arMoleculeColor = 0x2563eb; // Royal Blue
+                phLabel.innerText = "pH 7.0 (Neutral Blue Quinonoidal)";
+                phLabel.className = "text-[11px] font-mono text-blue-300 bg-blue-900/60 px-2 py-0.5 rounded border border-blue-500/30";
+
+                title.innerText = "Delphinidin 3,5-diglucoside";
+                desc.innerText = "The primary natural blue polyphenol compound in <em>Clitoria ternatea</em> petals. In neutral water ($pH \approx 7$), it forms a stable blue flavylium cation network.";
+                formula.innerText = "$C_{27}H_{31}O_{16}^+$";
+                spectrum.innerText = "580–620 nm (Royal Blue)";
+            }
+
+            build3DMolecule(arMoleculeColor);
+            sfx.playPourSparkle();
+        }
+
+        function toggleARMoleculeRotation() {
+            sfx.playClick();
+            autoRotateAR = !autoRotateAR;
+            document.getElementById('label-rot-btn').innerText = autoRotateAR ? "Auto-Rotate On" : "Auto-Rotate Off";
+        }
+
+        function resetARCameraView() {
+            sfx.playClick();
+            if (moleculeGroup) {
+                moleculeGroup.rotation.set(0, 0, 0);
+                moleculeGroup.position.set(-1.2, 0, 0);
+            }
+            if (arCamera) {
+                arCamera.position.set(0, 0, 14);
+            }
+        }
+
+        // Beaker bubble generator
+        let bubbleInterval = null;
+        function generateBeakerBubbles(frequencyMs = 300) {
+            const emitter = document.getElementById('bubble-emitter');
+            if (bubbleInterval) clearInterval(bubbleInterval);
+            
+            bubbleInterval = setInterval(() => {
+                const liquid = document.getElementById('beaker-liquid');
+                if (parseFloat(liquid.style.height) > 0) {
+                    const bubble = document.createElement('div');
+                    bubble.className = 'bubble';
+                    
+                    const diameter = 4 + Math.random() * 8;
+                    bubble.style.width = `${diameter}px`;
+                    bubble.style.height = `${diameter}px`;
+                    bubble.style.left = `${Math.random() * 80 + 10}%`;
+                    bubble.style.animationDuration = `${1.5 + Math.random() * 1.5}s`;
+                    
+                    emitter.appendChild(bubble);
+                    
+                    setTimeout(() => { bubble.remove(); }, 2500);
+                }
+            }, frequencyMs);
+        }
+
+        function handleSliderChange(val) {
+            const liquid = document.getElementById('beaker-liquid');
+            const badge = document.getElementById('ph-badge');
+            
+            let color = '';
+            let label = '';
+            
+            if (val < 3) {
+                color = '#9333ea'; 
+                label = `pH ${parseFloat(val).toFixed(1)} (Highly Acidic - Purple)`;
+                badge.className = 'px-3 py-1 bg-purple-600 text-white font-mono text-xs font-bold rounded-full';
+            } else if (val >= 3 && val < 5.5) {
+                color = '#a855f7';
+                label = `pH ${parseFloat(val).toFixed(1)} (Acidic - Lavender)`;
+                badge.className = 'px-3 py-1 bg-purple-400 text-white font-mono text-xs font-bold rounded-full';
+            } else if (val >= 5.5 && val < 8) {
+                color = '#2563eb';
+                label = `pH ${parseFloat(val).toFixed(1)} (Neutral - Royal Blue)`;
+                badge.className = 'px-3 py-1 bg-blue-600 text-white font-mono text-xs font-bold rounded-full';
+            } else if (val >= 8 && val < 11.5) {
+                color = '#10b981';
+                label = `pH ${parseFloat(val).toFixed(1)} (Alkaline - Green)`;
+                badge.className = 'px-3 py-1 bg-emerald-600 text-white font-mono text-xs font-bold rounded-full';
+            } else {
+                color = '#eab308';
+                label = `pH ${parseFloat(val).toFixed(1)} (Highly Alkaline - Yellow)`;
+                badge.className = 'px-3 py-1 bg-yellow-600 text-white font-mono text-xs font-bold rounded-full';
+            }
+            
+            liquid.style.transition = 'background-color 0.4s ease, height 1s ease';
+            liquid.style.backgroundColor = color;
+            if (parseFloat(liquid.style.height) === 0) {
+                liquid.style.height = '70%';
+            }
+            badge.innerText = label;
+        }
+
+        function pourLiquid(colorName, streamColor) {
+            sfx.playClick();
+            const stream = document.getElementById('pour-stream');
+            const liquid = document.getElementById('beaker-liquid');
+            const slider = document.getElementById('ph-range-input');
+            
+            let targetColor = '#3b82f6';
+            let targetPH = 7;
+            if (colorName === 'purple') {
+                targetColor = '#9333ea';
+                targetPH = 2;
+            }
+            if (colorName === 'green') {
+                targetColor = '#10b981';
+                targetPH = 10;
+            }
+            
+            liquid.style.transition = 'none';
+            liquid.style.height = '0%';
+            stream.style.backgroundColor = streamColor;
+            
+            stream.classList.remove('pour-active');
+            void stream.offsetWidth; 
+            stream.classList.add('pour-active');
+            sfx.playPourSparkle();
+            
+            setTimeout(() => {
+                liquid.style.transition = 'height 1s cubic-bezier(0.4, 0, 0.2, 1), background-color 1s ease-in-out';
+                liquid.style.backgroundColor = targetColor;
+                liquid.style.height = '70%';
+                
+                slider.value = targetPH;
+                handleSliderChange(targetPH);
+                
+                generateBeakerBubbles(300);
+                sfx.playChime();
+            }, 300);
+        }
+
+        // Cooking Simulator Logic
+        let currentNasiStep = 1;
+        let currentMocktailStep = 1;
+        let nasiStepDone = false;
+        let mocktailStepDone = false;
+
+        function switchRecipe(recipeType) {
+            sfx.playClick();
+            const nasiTab = document.getElementById('tab-nasi');
+            const mocktailTab = document.getElementById('tab-mocktail');
+            const nasiSection = document.getElementById('recipe-nasi-section');
+            const mocktailSection = document.getElementById('recipe-mocktail-section');
+
+            if (recipeType === 'nasi') {
+                nasiTab.className = "px-6 py-3 bg-amber-500 text-white font-bold rounded-full shadow-md hover:bg-amber-600 transition-colors";
+                mocktailTab.className = "px-6 py-3 bg-slate-200 text-slate-700 font-bold rounded-full shadow hover:bg-slate-300 transition-colors";
+                nasiSection.classList.remove('hidden');
+                mocktailSection.classList.add('hidden');
+            } else {
+                nasiTab.className = "px-6 py-3 bg-slate-200 text-slate-700 font-bold rounded-full shadow hover:bg-slate-300 transition-colors";
+                mocktailTab.className = "px-6 py-3 bg-indigo-600 text-white font-bold rounded-full shadow-md hover:bg-indigo-700 transition-colors";
+                nasiSection.classList.add('hidden');
+                mocktailSection.classList.remove('hidden');
+            }
+        }
+
+        function build3DRicePile() {
+            const pile = document.getElementById('rice-pile');
+            pile.innerHTML = '';
+            
+            for (let i = 0; i < 220; i++) {
+                const grain = document.createElement('div');
+                grain.className = 'rice-grain absolute bg-stone-100 rounded-full shadow-sm transition-all duration-700 border border-stone-200/30 z-10';
+                
+                const angle = Math.random() * Math.PI * 2;
+                const r = Math.random() * 52;
+                const x = 50 + Math.cos(angle) * r;
+                const y = 50 + Math.sin(angle) * r;
+                const width = 11 + Math.random() * 8;
+                const height = 5 + Math.random() * 4;
+                const rot = Math.random() * 360;
+                
+                grain.style.width = `${width}px`;
+                grain.style.height = `${height}px`;
+                grain.style.left = `calc(${x}% - ${width/2}px)`;
+                grain.style.top = `calc(${y}% - ${height/2}px)`;
+                grain.style.transform = `rotate(${rot}deg)`;
+                grain.style.boxShadow = '1px 1px 2px rgba(0,0,0,0.15), inset -1px -1px 2px rgba(0,0,0,0.08)';
+                grain.style.background = 'radial-gradient(circle at 30% 30%, #ffffff 0%, #f5f4ef 70%, #dfdbd3 100%)';
+                pile.appendChild(grain);
+            }
+        }
+
+        const nasiSteps = [
+            { txt: "STEP 1: Pick fresh butterfly pea flowers from the garden vine.", btn: "🌸 Pick Flowers" },
+            { txt: "STEP 2: Brew the picked flowers in hot boiling water to extract the rich natural blue dye.", btn: "🍲 Brew Flowers" },
+            { txt: "STEP 3: Wash the grains of plain white rice thoroughly in fresh water.", btn: "🍚 Wash Grains" },
+            { txt: "STEP 4: Cook the washed rice together with the hot blue flower water extract.", btn: "🔥 Cook Rice" },
+            { txt: "STEP 5: Finely shred and prepare fresh herbs and vegetables (Ulam) for garnish.", btn: "🥒 Chop Grains & Herbs" },
+            { txt: "STEP 6: Toast grated coconut and spiced fish to make the savory fish topping (Serunding).", btn: "🥥 Toast Serunding" },
+            { txt: "STEP 7: Blend aromatic red chilies, garlic, and seasoning to make the sambal sauce.", btn: "🌶️ Crush Spicy Sambal" },
+            { txt: "STEP 8: Grill or fry a crispy traditional side dish of chicken or fish (optional).", btn: "🍳 Fry Side Dish" },
+            { txt: "STEP 9: Serve the gorgeous textured blue rice dynamically with ulam, serunding, sambal, and sides!", btn: "🍽️ Serve Plate" }
+        ];
+
+        function updateNasiUI() {
+            const indicator = document.getElementById('nasi-step-indicator');
+            const stepText = document.getElementById('nasi-instruction-text');
+            const actionLabel = document.getElementById('nasi-action-label');
+            const prevBtn = document.getElementById('nasi-prev-btn');
+
+            const currentData = nasiSteps[currentNasiStep - 1];
+            indicator.innerText = currentNasiStep;
+            stepText.innerText = currentData.txt;
+            actionLabel.innerText = currentData.btn;
+
+            if (currentNasiStep > 1) {
+                prevBtn.classList.remove('hidden');
+            } else {
+                prevBtn.classList.add('hidden');
+            }
+        }
+
+        function executeNasiStep() {
+            sfx.playClick();
+            const pot = document.getElementById('visual-pot-overlay');
+            const potLiquid = document.getElementById('pot-liquid');
+            const potStatus = document.getElementById('pot-status');
+            const ricePile = document.getElementById('rice-pile');
+            const riceLabel = document.getElementById('rice-label');
+
+            if (currentNasiStep === 1) {
+                sfx.playPourSparkle();
+                potStatus.innerText = "Flowers harvested!";
+                pot.classList.remove('opacity-0');
+                setTimeout(() => { pot.classList.add('opacity-0'); }, 1200);
+                currentNasiStep++;
+            } else if (currentNasiStep === 2) {
+                potStatus.innerText = "Brewing... Extracting blue anthocyanins!";
+                potLiquid.style.height = '60%';
+                potLiquid.style.backgroundColor = '#1d4ed8';
+                pot.classList.remove('opacity-0');
+                sfx.playPourSparkle();
+
+                setTimeout(() => { pot.classList.add('opacity-0'); }, 1500);
+                currentNasiStep++;
+            } else if (currentNasiStep === 3) {
+                potStatus.innerText = "Rinsing rice grains clean!";
+                potLiquid.style.height = '50%';
+                potLiquid.style.backgroundColor = '#e2e8f0';
+                pot.classList.remove('opacity-0');
+                sfx.playPourSparkle();
+
+                setTimeout(() => { pot.classList.add('opacity-0'); }, 1200);
+                currentNasiStep++;
+            } else if (currentNasiStep === 4) {
+                potStatus.innerText = "Steaming rice in blue flower extract...";
+                pot.classList.remove('opacity-0');
+                sfx.playPourSparkle();
+
+                setTimeout(() => {
+                    pot.classList.add('opacity-0');
+                    ricePile.classList.remove('opacity-0');
+                    ricePile.className = "absolute w-32 h-32 bg-transparent flex flex-wrap items-center justify-center relative overflow-visible pop-in";
+                    const grains = document.querySelectorAll('.rice-grain');
+                    grains.forEach((grain) => {
+                        grain.style.background = 'radial-gradient(circle at 30% 30%, #3b82f6 0%, #2563eb 60%, #1d4ed8 100%)';
+                        grain.style.borderColor = 'rgba(29, 78, 216, 0.3)';
+                    });
+                    riceLabel.innerText = "Magical textured blue-stained cooked rice!";
+                }, 1500);
+                currentNasiStep++;
+            } else if (currentNasiStep === 5) {
+                const cucumbers = document.getElementById('side-cucumber');
+                cucumbers.style.opacity = '1';
+                cucumbers.className = 'absolute top-4 left-14 pop-in';
+                sfx.playPourSparkle();
+                currentNasiStep++;
+            } else if (currentNasiStep === 6) {
+                const serunding = document.getElementById('side-serunding');
+                serunding.style.opacity = '1';
+                serunding.className = 'absolute top-10 right-10 pop-in';
+                sfx.playPourSparkle();
+                currentNasiStep++;
+            } else if (currentNasiStep === 7) {
+                const sambal = document.getElementById('side-sambal');
+                sambal.style.opacity = '1';
+                sambal.className = 'absolute bottom-6 left-12 pop-in';
+                sfx.playPourSparkle();
+                currentNasiStep++;
+            } else if (currentNasiStep === 8) {
+                const fish = document.getElementById('side-fish');
+                fish.style.opacity = '1';
+                fish.className = 'absolute bottom-12 left-10 pop-in';
+                sfx.playPourSparkle();
+                currentNasiStep++;
+            } else if (currentNasiStep === 9) {
+                const egg = document.getElementById('side-egg');
+                egg.style.opacity = '1';
+                egg.className = 'absolute bottom-6 right-10 pop-in';
+                
+                riceLabel.innerText = "Delicious traditional Nasi Kerabu Complete!";
+                nasiStepDone = true;
+                sfx.playChime();
+                checkBadgeStatus();
+            }
+
+            updateNasiUI();
+        }
+
+        function prevNasiStep() {
+            if (currentNasiStep > 1) {
+                sfx.playClick();
+                currentNasiStep--;
+                updateNasiUI();
+            }
+        }
+
+        const mocktailSteps = [
+            { txt: "STEP 1: Collect freshly bloomed butterfly pea flowers from the garden.", btn: "🌸 Collect Flowers" },
+            { txt: "STEP 2: Brew flowers in hot water to produce a deep blue herbal tea extract.", btn: "🍵 Brew Blue Tea" },
+            { txt: "STEP 3: Pack the glass with plenty of ice cubes! (Keep it cold and fresh).", btn: "🧊 Pack with Ice" },
+            { txt: "STEP 4: Pour in bubbly lemonade or soda. (Liquid is kept moderately low).", btn: "🥤 Pour Lemonade & Soda" },
+            { txt: "STEP 5: Garnish the rim with a beautifully sliced lemon on top of the glass.", btn: "🍋 Garnish Rim" },
+            { txt: "STEP 6: Serve the sparkling, magical Blue Mocktail!", btn: "✨ Serve Mocktail" }
+        ];
+
+        function updateMocktailUI() {
+            const indicator = document.getElementById('mocktail-step-indicator');
+            const stepText = document.getElementById('mocktail-instruction-text');
+            const actionLabel = document.getElementById('mocktail-action-label');
+            const prevBtn = document.getElementById('mocktail-prev-btn');
+
+            const currentData = mocktailSteps[currentMocktailStep - 1];
+            indicator.innerText = currentMocktailStep;
+            stepText.innerText = currentData.txt;
+            actionLabel.innerText = currentData.btn;
+
+            if (currentMocktailStep > 1) {
+                prevBtn.classList.remove('hidden');
+            } else {
+                prevBtn.classList.add('hidden');
+            }
+        }
+
+        function executeMocktailStep() {
+            sfx.playClick();
+            const liquid = document.getElementById('mocktail-liquid');
+            const label = document.getElementById('mocktail-label');
+            const lemon = document.getElementById('lemon-slice');
+            const iceContainer = document.getElementById('ice-container');
+
+            if (currentMocktailStep === 1) {
+                sfx.playPourSparkle();
+                currentMocktailStep++;
+            } else if (currentMocktailStep === 2) {
+                liquid.style.transition = 'height 1s ease';
+                liquid.style.setProperty('--mocktail-fill-height', '75%');
+                liquid.className = "w-full bg-blue-600 liquid-pour-mocktail relative flex flex-col justify-end items-center border-t-2 border-blue-400";
+                label.innerText = "Fresh blue Butterfly Pea tea base brewed.";
+                sfx.playPourSparkle();
+                currentMocktailStep++;
+            } else if (currentMocktailStep === 3) {
+                iceContainer.innerHTML = '';
+                for (let i = 0; i < 10; i++) {
+                    const ice = document.createElement('div');
+                    ice.className = 'absolute bg-white/75 rounded border border-sky-100/50 flex items-center justify-center font-bold text-sky-400 text-[11px] shadow-sm';
+                    const size = 18 + Math.random() * 8;
+                    ice.style.width = `${size}px`;
+                    ice.style.height = `${size}px`;
+                    ice.style.left = `${5 + Math.random() * 70}%`;
+                    ice.style.bottom = `${5 + Math.random() * 55}%`;
+                    ice.style.transform = `rotate(${Math.random() * 90 - 45}deg)`;
+                    ice.innerText = '🧊';
+                    iceContainer.appendChild(ice);
+                }
+                label.innerText = "Glass perfectly packed with lots of ice!";
+                sfx.playPourSparkle();
+                currentMocktailStep++;
+            } else if (currentMocktailStep === 4) {
+                liquid.style.backgroundColor = '#4f46e5'; 
+                label.innerText = "Bubbly fizz added! (Water kept balanced and light)";
+                sfx.playPourSparkle();
+                currentMocktailStep++;
+            } else if (currentMocktailStep === 5) {
+                lemon.style.opacity = '1';
+                lemon.className = 'absolute -top-6 left-1/2 -translate-x-1/2 w-14 h-14 bg-yellow-400 rounded-full border-4 border-yellow-600 flex items-center justify-center shadow-lg transform rotate-12 pop-in z-30';
+                label.innerText = "Lemon perched beautifully on top of the rim!";
+                sfx.playPourSparkle();
+                currentMocktailStep++;
+            } else if (currentMocktailStep === 6) {
+                liquid.style.backgroundColor = '#9333ea'; 
+                label.innerText = "Vibrant chemical color reaction turned drink rich purple! Ready to serve.";
+                mocktailStepDone = true;
+                sfx.playChime();
+                checkBadgeStatus();
+            }
+
+            updateMocktailUI();
+        }
+
+        function prevMocktailStep() {
+            if (currentMocktailStep > 1) {
+                sfx.playClick();
+                currentMocktailStep--;
+                updateMocktailUI();
+            }
+        }
+
+        function checkBadgeStatus() {
+            const badgeIcon = document.getElementById('badge-icon');
+            const badgeInstruct = document.getElementById('badge-instructions');
+
+            if (nasiStepDone && mocktailStepDone) {
+                badgeIcon.innerText = '👑';
+                badgeIcon.className = "w-16 h-16 bg-yellow-400 border-2 border-solid border-yellow-500 rounded-full flex items-center justify-center text-4xl animate-bounce shadow-lg";
+                badgeInstruct.innerText = "Master Chef Badge unlocked! You are a Bunga Telang Culinary Specialist!";
+                badgeInstruct.className = "text-sm font-semibold text-green-600";
+                sfx.playChime();
+            } else if (nasiStepDone || mocktailStepDone) {
+                badgeIcon.innerText = '🧑‍🍳';
+                badgeIcon.className = "w-16 h-16 bg-amber-200 border-2 border-dashed border-amber-400 rounded-full flex items-center justify-center text-3xl";
+                badgeInstruct.innerText = "One recipe complete! Prepare the other recipe to unlock your badge.";
+            }
+        }
+
+        function resetCafeGame() {
+            currentNasiStep = 1;
+            updateNasiUI();
+            build3DRicePile();
+            document.getElementById('rice-label').innerText = 'Plate ready for cooking';
+            document.getElementById('rice-pile').classList.add('opacity-0');
+            
+            const cucumbers = document.getElementById('side-cucumber');
+            cucumbers.style.opacity = '0';
+            cucumbers.className = 'absolute top-4 left-14 opacity-0 scale-50 transition-all duration-500 pointer-events-none z-20';
+            
+            const egg = document.getElementById('side-egg');
+            egg.style.opacity = '0';
+            egg.className = 'absolute bottom-6 right-10 opacity-0 scale-50 transition-all duration-500 pointer-events-none z-20';
+            
+            const fish = document.getElementById('side-fish');
+            fish.style.opacity = '0';
+            fish.className = 'absolute bottom-12 left-10 opacity-0 scale-50 transition-all duration-500 pointer-events-none z-20';
+
+            const serunding = document.getElementById('side-serunding');
+            serunding.style.opacity = '0';
+            serunding.className = 'absolute top-10 right-10 opacity-0 scale-50 transition-all duration-500 pointer-events-none z-20';
+
+            const sambal = document.getElementById('side-sambal');
+            sambal.style.opacity = '0';
+            sambal.className = 'absolute bottom-6 left-12 opacity-0 scale-50 transition-all duration-500 pointer-events-none z-20';
+
+            currentMocktailStep = 1;
+            updateMocktailUI();
+            const liquid = document.getElementById('mocktail-liquid');
+            liquid.className = "w-full h-0 bg-transparent relative flex flex-col justify-end items-center";
+            liquid.style.backgroundColor = 'transparent';
+            document.getElementById('ice-container').innerHTML = '';
+            document.getElementById('mocktail-label').innerText = 'Empty Cocktail Glass';
+            
+            const lemon = document.getElementById('lemon-slice');
+            lemon.style.opacity = '0';
+            lemon.className = 'absolute -top-6 left-1/2 -translate-x-1/2 w-14 h-14 bg-yellow-400 rounded-full border-4 border-yellow-600 flex items-center justify-center shadow-lg transform rotate-12 opacity-0 transition-all duration-500 pointer-events-none z-30';
+            
+            nasiStepDone = false;
+            mocktailStepDone = false;
+            const badgeIcon = document.getElementById('badge-icon');
+            badgeIcon.className = "w-16 h-16 bg-slate-100 border-2 border-dashed border-slate-300 rounded-full flex items-center justify-center text-3xl";
+            badgeIcon.innerText = '🔒';
+            document.getElementById('badge-instructions').className = "text-xs text-slate-500";
+            document.getElementById('badge-instructions').innerText = "Complete both Nasi Kerabu & Mocktail to earn your badge!";
+        }
+
+        // Quiz Questions
+        const rawQuestions = [
+            { q: "What is the scientific name of Bunga Telang?", correct: "A. Clitoria ternatea", options: ["A. Clitoria ternatea", "B. Hibiscus rosa-sinensis", "C. Rosa chinensis", "D. Jasminum sambac"] },
+            { q: "Which plant family does Bunga Telang belong to?", correct: "A. Fabaceae", options: ["A. Fabaceae", "B. Rosaceae", "C. Asteraceae", "D. Poaceae"] },
+            { q: "In which type of climate does Bunga Telang grow best?", correct: "A. Tropical climates", options: ["A. Tropical climates", "B. Arctic climates", "C. Desert climates", "D. Alpine climates"] },
+            { q: "What is the common English name for Bunga Telang?", correct: "A. Butterfly Pea", options: ["A. Butterfly Pea", "B. Blue Lily", "C. Morning Glory", "D. Bluebell"] },
+            { q: "What natural pigment gives Bunga Telang its blue colour?", correct: "A. Anthocyanins", options: ["A. Anthocyanins", "B. Chlorophyll", "C. Carotene", "D. Lycopene"] },
+            { q: "What happens to Bunga Telang tea when lemon juice is added?", correct: "A. Turns purple/pink", options: ["A. Turns purple/pink", "B. Turns green", "C. Turns brown", "D. Turns yellow"] },
+            { q: "Name one traditional Malaysian dish that uses Bunga Telang as a natural food colouring.", correct: "A. Nasi Kerabu", options: ["A. Nasi Kerabu", "B. Roti Canai", "C. Satay", "D. Mee Goreng"] },
+            { q: "Why is Bunga Telang considered a healthier alternative to artificial food colouring?", correct: "A. Rich in antioxidants", options: ["A. Rich in antioxidants", "B. Contains more sugar", "C. Lasts longer", "D. Has artificial flavours"] },
+            { q: "Is Butterfly Pea Tea naturally caffeine-free?", correct: "A. Yes", options: ["A. Yes", "B. No", "C. Only when cold", "D. Only with honey"] },
+            { q: "Name two antioxidants found in Bunga Telang.", correct: "A. Anthocyanins and flavonoids", options: ["A. Anthocyanins and flavonoids", "B. Calcium and iron", "C. Vitamin D and zinc", "D. Protein and fibre"] },
+            { q: "List two potential health benefits of Bunga Telang.", correct: "A. Better memory; healthy skin", options: ["A. Better memory; healthy skin", "B. Stronger bones; taller height", "C. Faster hair growth; weight gain", "D. Better hearing; stronger nails"] },
+            { q: "How does Bunga Telang help improve soil fertility?", correct: "A. Adds nitrogen", options: ["A. Adds nitrogen", "B. Removes oxygen", "C. Increases sand", "D. Produces salt"] },
+            { q: "Which insects are commonly attracted to Bunga Telang flowers?", correct: "A. Bees and butterflies", options: ["A. Bees and butterflies", "B. Mosquitoes and flies", "C. Cockroaches and ants", "D. Termites and beetles"] },
+            { q: "Name two industries that use Bunga Telang today.", correct: "A. Food and cosmetics", options: ["A. Food and cosmetics", "B. Construction and mining", "C. Aviation and shipping", "D. Textile and steel"] },
+            { q: "Why is Bunga Telang considered an environmentally friendly plant?", correct: "A. Supports pollinators and soil", options: ["A. Supports pollinators and soil", "B. Grows only indoors", "C. Produces plastic", "D. Needs large amounts of pesticides"] }
+        ];
+
+        let currentScore = 0;
+        let answeredQuestions = 0;
+        let streak = 0;
+        let xpPoints = 0;
+
+        function shuffle(array) {
+            let currentIndex = array.length, randomIndex;
+            while (currentIndex !== 0) {
+                randomIndex = Math.floor(Math.random() * currentIndex);
+                currentIndex--;
+                [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+            }
+            return array;
+        }
+
+        function updateQuizHeader() {
+            document.getElementById('streak-display').innerText = streak;
+            document.getElementById('xp-display').innerText = xpPoints;
+            document.getElementById('progress-text').innerText = `${answeredQuestions}/${rawQuestions.length}`;
+        }
+
+        function renderQuiz() {
+            const container = document.getElementById('quiz-container');
+            container.innerHTML = ''; 
+            currentScore = 0;
+            answeredQuestions = 0;
+            streak = 0;
+            xpPoints = 0;
+            updateQuizHeader();
+            document.getElementById('quiz-results').classList.add('hidden');
+
+            const shuffledQuestions = shuffle([...rawQuestions]);
+
+            shuffledQuestions.forEach((qData, qIndex) => {
+                const questionDiv = document.createElement('div');
+                questionDiv.className = 'mb-8 border-b border-slate-100 pb-6 last:border-0 last:pb-0 relative z-10';
+                questionDiv.id = `question-block-${qIndex}`;
+
+                const qTitle = document.createElement('h3');
+                qTitle.className = 'text-xl font-semibold mb-4 text-slate-800';
+                qTitle.innerText = `${qIndex + 1}. ${qData.q}`;
+                questionDiv.appendChild(qTitle);
+
+                const optionsGrid = document.createElement('div');
+                optionsGrid.className = 'grid grid-cols-1 md:grid-cols-2 gap-3';
+                
+                const pureOptions = qData.options.map(opt => opt.replace(/^[A-D]\.\s*/, ''));
+                const correctOptionText = qData.correct.replace(/^[A-D]\.\s*/, '');
+                
+                const shuffledPureOptions = shuffle([...pureOptions]);
+                const letters = ["A", "B", "C", "D"];
+
+                shuffledPureOptions.forEach((optText, optIdx) => {
+                    const btn = document.createElement('button');
+                    btn.className = 'quiz-btn text-left p-4 rounded-xl border-2 border-slate-200 hover:border-indigo-400 hover:bg-indigo-50 transition-colors font-medium text-slate-700 w-full';
+                    btn.innerText = `${letters[optIdx]}. ${optText}`;
+                    btn.onclick = () => handleAnswer(btn, optText, correctOptionText, qIndex);
+                    optionsGrid.appendChild(btn);
+                });
+
+                questionDiv.appendChild(optionsGrid);
+                container.appendChild(questionDiv);
+            });
+        }
+
+        function handleAnswer(btnElement, selectedAnswer, correctAnswerText, questionIndex) {
+            const block = document.getElementById(`question-block-${questionIndex}`);
+            const buttons = block.querySelectorAll('button');
+            
+            buttons.forEach(b => {
+                b.disabled = true;
+                b.classList.remove('hover:border-indigo-400', 'hover:bg-indigo-50', 'cursor-pointer');
+                
+                const cleanedButtonText = b.innerText.replace(/^[A-D]\.\s*/, '');
+                
+                if (cleanedButtonText === correctAnswerText) {
+                    b.classList.add('bg-green-100', 'border-green-500', 'text-green-800');
+                    b.classList.remove('border-slate-200', 'text-slate-700');
+                }
+            });
+
+            if (selectedAnswer !== correctAnswerText) {
+                btnElement.classList.add('bg-red-100', 'border-red-500', 'text-red-800');
+                btnElement.classList.remove('border-slate-200', 'text-slate-700');
+                sfx.playWrongChime();
+                streak = 0;
+            } else {
+                currentScore++;
+                streak++;
+                xpPoints += (100 * streak);
+                sfx.playChime();
+            }
+
+            answeredQuestions++;
+            updateQuizHeader();
+            
+            if (answeredQuestions === rawQuestions.length) {
+                showResults();
+            }
+        }
+
+        function showResults() {
+            const resultsDiv = document.getElementById('quiz-results');
+            const scoreDisplay = document.getElementById('score-display');
+            const messageDisplay = document.getElementById('score-message');
+
+            const percentage = Math.round((currentScore / rawQuestions.length) * 100);
+            
+            resultsDiv.classList.remove('hidden');
+            scoreDisplay.innerText = `${percentage}% (${currentScore}/${rawQuestions.length})`;
+
+            if (percentage === 100) {
+                messageDisplay.innerText = "Wow! You are an elite Bunga Telang Expert! 🌿👑";
+                messageDisplay.className = "text-xl font-semibold text-green-600";
+            } else if (percentage >= 70) {
+                messageDisplay.innerText = "Great job! You are a Bunga Telang Professional! 🌺🔬";
+                messageDisplay.className = "text-xl font-semibold text-blue-600";
+            } else if (percentage >= 40) {
+                messageDisplay.innerText = "Good effort! You're a budding scientist. Keep learning! 🌱";
+                messageDisplay.className = "text-xl font-semibold text-yellow-600";
+            } else {
+                messageDisplay.innerText = "A rough start! Go back to the Information tab and try again! 📚";
+                messageDisplay.className = "text-xl font-semibold text-red-600";
+            }
+
+            setTimeout(() => {
+                resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 300);
+        }
+
+        function resetQuiz() {
+            renderQuiz();
+            window.scrollTo({ top: document.getElementById('quiz-page').offsetTop, behavior: 'smooth' });
+        }
+
+        window.onload = () => {
+            renderQuiz();
+            initGardenAtmosphere();
+            build3DRicePile();
+            pourLiquid('blue', '#3b82f6');
+            updateNasiUI();
+            updateMocktailUI();
+            navigateTo('main-page');
+        };
+    </script>
+</body>
+</html>

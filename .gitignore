@@ -1,0 +1,14 @@
+# Local tooling
+.commandcode/
+.venv/
+__pycache__/
+*.pyc
+
+# OS junk
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+.idea/
